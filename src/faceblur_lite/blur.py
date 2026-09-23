@@ -25,6 +25,8 @@ def blur_regions(frame: np.ndarray, boxes: list[np.ndarray],
     for box in boxes:
         x1, y1, x2, y2 = expand_box(box, w, h, margin)
         crop = out[y1:y2, x1:x2]
-        k = max(3, int(min(crop.shape[:2]) * 0.15) // 2 * 2 + 1)  # 奇数核
+        # 奇数核；比例 0.75：σ 须与人脸低频结构尺度相当，否则 std 验收不降
+        # （2026-09-24 执行期调参，原 0.15 只抹高频细节）
+        k = max(3, int(min(crop.shape[:2]) * 0.75) // 2 * 2 + 1)
         out[y1:y2, x1:x2] = cv2.GaussianBlur(crop, (k, k), 0)
     return out
