@@ -901,7 +901,7 @@ git commit -m "feat: Detector 协议 + YuNet 实现" \
 - Consumes: `Det`（Task 3）
 - Produces:
   - `Track(id, box: np.ndarray(xyxy), last_box: np.ndarray, vel: np.ndarray(4,), hits, misses)` dataclass
-  - `Tracker(high_thr=0.5, low_thr=0.3, iou_thr=0.3, max_age=3, alpha=0.6)`
+  - `Tracker(high_thr=0.5, low_thr=0.3, iou_thr=0.1, max_age=3, alpha=0.6)`（iou_thr 0.3→0.1，2026-09-24 执行期修正：出生首跳 vel=0，40px 框跳 30px 的 IoU=0.143 < 0.3 永不匹配→连锁重生；0.1 对 demo 几何（120px 脸约 6.5px/帧）无影响）
     - `.predict() -> list[Track]`：恒速模型外推一帧（**R6 下一帧坐标预测**）
     - `.update(dets: list[Det], gap: int = 1) -> list[Track]`：高分框匈牙利匹配校正；未匹配 track 用低分框二轮救活；`max_age` 个检测轮无匹配才淘汰
     - `.total_tracks -> int` property：累计出生过的 track 数
@@ -1039,7 +1039,7 @@ def associate(tracks_boxes: list, det_boxes: list,
 
 class Tracker:
     def __init__(self, high_thr: float = 0.5, low_thr: float = 0.3,
-                 iou_thr: float = 0.3, max_age: int = 3, alpha: float = 0.6):
+                 iou_thr: float = 0.1, max_age: int = 3, alpha: float = 0.6):
         self.high_thr = high_thr
         self.low_thr = low_thr
         self.iou_thr = iou_thr
@@ -1089,8 +1089,8 @@ class Tracker:
         self.tracks = [t for t in self.tracks if t.misses <= self.max_age]
 
         for j in um_hi:                     # 只有高分未匹配框允许出生
-            self.tracks.append(
-                Track(self._next_id, hi[j].xyxy(), hi[j].xyxy()))
+            self.tracks.append(              # hits=1：出生检测计入 hit（SORT 语义）
+                Track(self._next_id, hi[j].xyxy(), hi[j].xyxy(), hits=1))
             self._next_id += 1
         return self.tracks
 ```
