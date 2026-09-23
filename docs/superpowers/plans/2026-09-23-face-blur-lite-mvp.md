@@ -722,7 +722,10 @@ def blur_regions(frame: np.ndarray, boxes: list[np.ndarray],
     for box in boxes:
         x1, y1, x2, y2 = expand_box(box, w, h, margin)
         crop = out[y1:y2, x1:x2]
-        k = max(3, int(min(crop.shape[:2]) * 0.15) // 2 * 2 + 1)  # 奇数核
+        # 核比例 0.75（2026-09-24 执行期修正，原 0.15）：0.15 只抹高频，
+        # 低频对比（发色 vs 肤色）存活——隐私脱敏语义要求"宁可多糊"，
+        # 大核直接摧毁低频结构；实测 std 比 0.15→0.884 / 0.75→0.693
+        k = max(3, int(min(crop.shape[:2]) * 0.75) // 2 * 2 + 1)  # 奇数核
         out[y1:y2, x1:x2] = cv2.GaussianBlur(crop, (k, k), 0)
     return out
 ```
