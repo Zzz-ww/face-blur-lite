@@ -458,7 +458,8 @@ def test_writer_reader_roundtrip(tmp_path):
     out = str(tmp_path / "rt.mp4")
     with FFmpegWriter(out, meta) as w:
         for i in range(5):
-            w.write(np.full((48, 64, 3), (i * 40) % 255, dtype=np.uint8))
+            # (i+1)*40：帧值 40..200（原 i*40 首帧=0 与下方 |got[0]-40|<6 断言矛盾，2026-09-24 执行期修正）
+            w.write(np.full((48, 64, 3), ((i + 1) * 40) % 255, dtype=np.uint8))
 
     m = probe(out)
     assert (m.width, m.height) == (64, 48)
@@ -770,7 +771,7 @@ import pytest
 
 from faceblur_lite.detector import YuNetDetector
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]   # tests/ 上一级=项目根（parents[2] 少一层，2026-09-24 执行期修正）
 MODEL = ROOT / "models" / "face_detection_yunet_2023mar.onnx"
 LENA = ROOT / "assets" / "lena.jpg"
 
@@ -1139,7 +1140,7 @@ import pytest
 
 from faceblur_lite.testmedia import build_video, load_face
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]   # tests/ 上一级=项目根（同 Task 3 修正）
 
 
 def assets_ready() -> bool:
@@ -2875,7 +2876,7 @@ def go_bin(tmp_path_factory):
     """构建 gocp 二进制（session 只构建一次）；无 go 工具链则跳过。"""
     if shutil.which("go") is None:
         pytest.skip("需要 go >= 1.22 工具链（brew install go）")
-    root = Path(__file__).resolve().parents[2]
+    root = Path(__file__).resolve().parents[1]   # tests/ 上一级=项目根（同 Task 3 修正）
     bin_path = tmp_path_factory.mktemp("gobuild") / "gocp"
     subprocess.run(["go", "build", "-o", str(bin_path), "."],
                    cwd=root / "gocp", check=True)
