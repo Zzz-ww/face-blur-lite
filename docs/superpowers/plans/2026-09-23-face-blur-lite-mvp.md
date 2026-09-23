@@ -2286,6 +2286,8 @@ def _orchestrate(specs: list[tuple[str, str]], workdir: str,
     for k, (inp, outp) in enumerate(specs):
         try:
             chunk_dir = Path(workdir) / "chunks" / f"{k:02d}_{Path(inp).stem}"
+            # 快路径不切不建目录——chunk 输出目录由编排器负责（2026-09-24 执行期修正）
+            chunk_dir.mkdir(parents=True, exist_ok=True)
             files = split_video(inp, str(chunk_dir), segment_s)
             items = [(i, f, str(chunk_dir / f"blurred_{i:03d}.mp4"))
                      for i, f in enumerate(files)]
