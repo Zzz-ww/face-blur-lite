@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+dist/
+outputs/
+work-*/
+models/*.onnx
+assets/*.jpg
+.DS_Store
