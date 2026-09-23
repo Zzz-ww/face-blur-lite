@@ -1228,10 +1228,17 @@ from faceblur_lite.ffmpeg_io import FFmpegWriter, VideoMeta
 
 
 def load_face(path: str) -> np.ndarray:
+    """读入人脸图并裁成特写（2026-09-24 执行期修正）。
+
+    YuNet 只检出 lena 的内脸（512 图坐标约 (201,186)-(355,388)，实测）；
+    不裁的话贴图大部分是帽/肩/背景，检测框+margin 足迹只覆盖贴图约 1/3，
+    模糊覆盖率断言（std 对比窗口≈整个贴图）数学上不可满足（下限 0.877）。
+    裁成特写让 贴图≈检测框，"人脸区域方差显著下降"的断言语义才成立。
+    """
     img = cv2.imread(path)
     if img is None:
         raise FileNotFoundError(path)
-    return img
+    return img[170:400, 185:385]
 
 
 def build_video(out_path: str, face_img: np.ndarray, scenario: str = "move",
