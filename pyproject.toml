@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "faceblur-lite"
+version = "0.1.0"
+description = "轻量视频人脸脱敏管线（控制面/数据面分离）"
+requires-python = ">=3.10"
+dependencies = ["opencv-python>=4.8", "numpy>=1.24", "scipy>=1.10"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4"]
+
+[project.scripts]
+faceblur-lite = "faceblur_lite.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
