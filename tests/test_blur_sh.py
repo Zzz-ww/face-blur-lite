@@ -116,6 +116,7 @@ def test_go_mode_pipeline(tmp_path, move_video):
     assert r.returncode == 0, r.stdout + r.stderr
     assert (out / "move_blurred.mp4").exists()
     assert "gocp" in r.stdout
+    assert "chunks/min" in r.stdout  # stats 从 gocp.db 打出批量指标（F1 回归锁）
 
 
 def test_go_with_single_mode_conflict(move_video, tmp_path):

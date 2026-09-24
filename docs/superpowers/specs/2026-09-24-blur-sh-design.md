@@ -1,6 +1,6 @@
 # blur.sh 本地运行脚本设计（spec）
 
-> 2026-09-24 ｜ 状态：设计已确认（三问定向 + 七节提案 + qc_failed=1 裁决），待实施
+> 2026-09-24 ｜ 状态：设计已确认（三问定向 + 七节提案 + qc_failed=1 裁决），已实施（feat/blur-sh）
 >
 > 配套：实施计划见 `docs/superpowers/plans/`（后续 writing-plans 产出）。
 
@@ -83,7 +83,7 @@ bootstrap（§6）→ 输入展开 → 碰撞预检 → 引擎选择 → 执行 
 | 检查 | 缺失时行为 |
 |---|---|
 | ffmpeg/ffprobe 不在 PATH | 报错 + `brew install ffmpeg` 指引，exit 2（不自动装） |
-| `venv/bin/faceblur-lite` 不存在 | `python3 -m venv venv` + `./venv/bin/pip install -e ".[dev]"` |
+| `venv/bin/faceblur-lite` 不存在 | 选取 python≥3.10（python3→3.13…3.10 逐候选）建 venv → pip 升级 → pip install -e ".[dev]"（详见 docs/bugs/008） |
 | `models/*.onnx` 或 `assets/*.jpg` 缺 | 自动跑 `bash scripts/download_assets.sh` |
 
 幂等：环境全齐时只做 `which` + `test -f`，秒过进正题。新 clone 一条命令跑通。

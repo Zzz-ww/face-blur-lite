@@ -65,6 +65,7 @@ ensure_env() {
 ensure_outdir_ignored() {  # $1=目录（须已存在）
   local od_abs
   od_abs=$(cd "$1" && pwd -P)
+  [ "$od_abs" = "$REPO" ] && die2 "--outdir 不能是仓库根（输出会污染仓库且无法安全忽略）"
   case "$od_abs" in
     "$REPO"/*)
       if ! git check-ignore -q "$od_abs"; then
@@ -150,8 +151,10 @@ qc_one() {  # $1=输出文件
 report_pipeline() {  # $1=workdir；INPUTS/OUTDIR 来自 cmd_run
   echo ""
   echo "── 批量指标 ──"
-  if [ -f "$1/pipeline.db" ]; then
-    "$FACEBLUR" stats "$1/pipeline.db" || true
+  local db="$1/pipeline.db"
+  if [ ! -f "$db" ] && [ -f "$1/gocp.db" ]; then db="$1/gocp.db"; fi
+  if [ -f "$db" ]; then
+    "$FACEBLUR" stats "$db" || true
   else
     echo "（无 pipeline.db——批前提交即失败）"
   fi
