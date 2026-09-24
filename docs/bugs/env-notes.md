@@ -10,3 +10,4 @@
 | opencv 5.0 stderr 告警 | 首次 `FaceDetectorYN.create` 打一行 "Targets are not supported by the new graph engine" | opencv 库自身行为，非缺陷，不绕过；每个 spawn 的 Worker 进程各打一次属正常 |
 | 沙箱 /tmp I/O 极慢 | ffmpeg 写 `/tmp` 比项目本地路径慢约 100× | 诊断/合成视频脚本放项目目录内跑 |
 | pip 偶发失败 | Task 0 安装 3 次才成 | `--no-cache-dir` 重试即过（瞬时网络问题） |
+| go 工具链过老 + 模块代理不通 | 系统 go 1.19.1 < 计划要求 ≥1.22；`proxy.golang.org` 连接失败（curl 000） | 升级 /usr/local/go 至 1.27.1；`go env -w GOPROXY=https://goproxy.cn,direct`（goproxy.cn 可达）；modernc.org/sqlite v1.59.0 及依赖已入本地模块缓存 |
