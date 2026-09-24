@@ -9,7 +9,7 @@
 ## 快速开始
 
 ```bash
-# 1) 资产：模型（YuNet ~1MB）+ 测试人脸图（产物已 gitignore）
+# 1) 资产：模型（YuNet ~230KB）+ 测试人脸图（产物已 gitignore）
 bash scripts/download_assets.sh
 
 # 2) 安装（Python ≥3.10，系统依赖 ffmpeg）
@@ -67,7 +67,7 @@ scatter-gather：  视频 ─split→ [chunk_0 … chunk_N] ─blur×N（并行�
 | R2 | 手臂遮挡不漏糊 | 跟踪器遮挡外推 + 低分框二轮回收（ByteTrack 思路）+ max_age 容忍 |
 | R3 | 长视频 | 流式 IO 内存 O(1) + scatter-gather 分片并行 |
 | R4 | 模型输入格式 | ffmpeg rawvideo pipe → `(H,W,3)` BGR uint8 帧；音轨 `-c:a copy` 不重编 |
-| R5 | 主流模型选型 | YuNet（~1MB，CPU 快）起步，藏在 `Detector` 协议后，SCRFD 为升级位 |
+| R5 | 主流模型选型 | YuNet（~230KB，CPU 快）起步，藏在 `Detector` 协议后，SCRFD 为升级位 |
 | R6 | 预测下一帧人脸坐标 | `Tracker.predict()` 恒速运动模型外推——显式、可单测 |
 | R7 | 控制面/数据面 + 控制面 Go | 契约先行：`ControlPlane` 协议，SQLite 内嵌 / gocp Go 服务双形态，同一份契约测试 |
 | R8 | 业界工作流平台 | 三平台映射见 [docs/platform-mapping.md](docs/platform-mapping.md) |
@@ -124,6 +124,7 @@ fail_rate: 0.0%
 ## 文档
 
 - [docs/design.md](docs/design.md) — 详细设计（四大视图 + ADR + 容错 + 业界平台对照 + 演进路线，Mermaid 图示）
+- [docs/pipeline-guide.md](docs/pipeline-guide.md) — 全链路管线指南（一帧的旅程：逐层格式变换 + 检测/跟踪/糊机理 + 异常五层处置矩阵）
 - [docs/platform-mapping.md](docs/platform-mapping.md) — 百舸/火山 LAS/胜算平台映射 + 通用引擎对照
 - [docs/superpowers/plans/2026-09-23-face-blur-lite-mvp.md](docs/superpowers/plans/2026-09-23-face-blur-lite-mvp.md) — 实施计划（TDD 任务分解）
 - [docs/bugs/](docs/bugs/) — 执行期 bug 记录（根因/修复/教训）

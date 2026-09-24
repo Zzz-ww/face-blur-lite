@@ -155,6 +155,8 @@ face-blur-lite/
 
 ### 3.1 数据处理管线设计（数据怎么流）
 
+> 本节是设计视图（决策与权衡）；逐层的格式变换链、处理机理与异常处置展开见 [pipeline-guide.md](pipeline-guide.md)（§1–§8 纵向跟拍 + 异常五层矩阵）。
+
 #### 端到端数据流
 
 ```mermaid
@@ -212,7 +214,7 @@ CPU 可跑（demo 无 GPU）、许可宽松、体积小、对"糊脸"够用—�
 
 | 候选                           | 体积     | CPU | 精度                  | 结论                                                      |
 | -------------------------------- | ---------- | ----- | ----------------------- | ----------------------------------------------------------- |
-| OpenCV YuNet（FaceDetectorYN） | ~1MB     | 快  | 正/侧脸够用，遮挡一般 | ✅ MVP 选定                                               |
+| OpenCV YuNet（FaceDetectorYN） | ~230KB   | 快  | 正/侧脸够用，遮挡一般 | ✅ MVP 选定                                               |
 | InsightFace SCRFD              | 数 MB 级 | 中  | 遮挡/小脸 recall 更强 | 升级位（协议已留）                                        |
 | 云端人脸 API                   | —       | —  | 高                    | ❌ 未脱敏人脸出域违背脱敏初衷（隐私悖论）＋万帧级调用成本 |
 
@@ -427,7 +429,7 @@ classDiagram
         +detect(frame_bgr) list~Det~
     }
     class YuNetDetector {
-        cv2.FaceDetectorYN（~1MB）
+        cv2.FaceDetectorYN（~230KB）
         预处理内部完成（setInputSize）
     }
     class SCRFD {
