@@ -1,6 +1,6 @@
 # face-blur-lite 详细设计文档
 
-> 版本 v1.4 ｜ 2026-09-24（v1.4=契约 v1.1：终态守卫 + attempt 记账对齐 + DDL 内联 + get_chunk；v1.3=实现校对 + §8 验收指标回填实测值；v1.2=R11-R13 演进就绪 + 全图示 Mermaid 化） ｜ 状态：MVP Task 0-12 已实现（50 测试绿 + 批量冒烟通过；gocp 契约双跑 10×2=20 + Go 模式 E2E）
+> 版本 v1.4 ｜ 2026-09-24（v1.4=契约 v1.1：终态守卫 + attempt 记账对齐 + DDL 内联 + get_chunk；v1.3=实现校对 + §8 验收指标回填实测值；v1.2=R11-R13 演进就绪 + 全图示 Mermaid 化） ｜ 状态：MVP Task 0-12 已实现 + 终审修复波收口（55 测试绿 + 批量冒烟通过；gocp 契约双跑 11×2=22 + Go 模式 E2E）
 >
 > 图示说明：本文全部图为 Mermaid（GitHub / VSCode 预览原生渲染），含 flowchart（架构/数据流/DAG/路线图）、stateDiagram（状态机×2）、sequenceDiagram（原子 Join / kill-9 恢复）、classDiagram（契约/数据面）。
 >
@@ -93,7 +93,7 @@ flowchart TB
 ### 2.3 技术选型
 
 - **数据面**：Python ≥3.10；`opencv-python`（FaceDetectorYN/YuNet）、`numpy`、`scipy`（匈牙利匹配）、`sqlite3`（标准库）、系统 ffmpeg/ffprobe。依赖白名单硬约束（4 个包）
-- **控制面 Go 形态**：Go ≥1.22；stdlib `net/http` + 唯一外部依赖 `modernc.org/sqlite`（纯 Go 无 CGO，`go build` 出静态单二进制）；Python 侧 HTTP 客户端用 stdlib `urllib`，**零新增依赖**
+- **控制面 Go 形态**：Go ≥1.25（modernc.org/sqlite v1.59.0 实际下限）；stdlib `net/http` + 唯一外部依赖 `modernc.org/sqlite`（纯 Go 无 CGO，`go build` 出静态单二进制）；Python 侧 HTTP 客户端用 stdlib `urllib`，**零新增依赖**
 
 ### 2.4 语言与形态 ADR（摘要）
 
@@ -630,5 +630,5 @@ flowchart LR
 | 并行（批量摊销） | 短视频几乎免费搭车 | ✅ 一次提交一个共享池，三视频同窗口完成（51.4/55.1/55.7s），小视频以队列交错搭车 |
 | 可观测 | stats 输出分位/吞吐/失败率 | ✅ queue p50=19.3s/p95=38.2s；proc p50=10.7s/p95=12.8s；17.35 chunks/min；retried=0（数字同 README"指标输出"节） |
 | 容错 | kill -9 恢复；失败隔离 | lease 语义由契约测试锁定（`test_lease_reclaim_and_attempt`：过期→pending 重派 attempt+1，耗尽→video failed）；失败隔离由 `test_batch_failure_isolation` 覆盖；本轮冒烟未做 live kill 演示（TTL=900s 需等满租约） |
-| 契约 | `test_contract.py` 全绿 | ✅ 10 用例 × sqlite/go 双跑 20 绿 + Go 模式管线 E2E（test_go_cp） |
-| 质量（单测） | 全量绿 | ✅ 50/50（tracker/blur/IO/契约/管线/qc/cli/stats；遮挡场景 E2E 含预测外推覆盖断言） |
+| 契约 | `test_contract.py` 全绿 | ✅ 11 用例 × sqlite/go 双跑 22 绿 + Go 模式管线 E2E（test_go_cp） |
+| 质量（单测） | 全量绿 | ✅ 55/55（tracker/blur/IO/契约/管线/qc/cli/stats + 终审修复波回归：切片清残留/撇号路径/输出碰撞/缺 id 语义；遮挡场景 E2E 含预测外推覆盖断言） |
