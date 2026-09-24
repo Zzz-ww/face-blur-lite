@@ -14,6 +14,8 @@ usage() { cat <<'EOF'
   scripts/blur.sh run <inputs...> [选项]   视频脱敏（文件/目录混合；≥2 个自动批量）
   scripts/blur.sh demo [选项]              一条命令演示完整故事
 
+目录约定：源片统一放 inputs/（不入库）；成品只落 outputs/。详见 outputs/README.md
+
 run 选项：
   --outdir DIR    输出目录（默认 outputs/；生成结果不进 git）
                   整洁约定：实验/多配置/批量跑进独立会话目录，如
@@ -291,7 +293,7 @@ cmd_run() {
 
 # ---------- demo ----------
 cmd_demo() {
-  local OUTDIR=outputs/demo WORKERS=2 GO=""
+  local OUTDIR=outputs/demo SRCDIR=inputs/demo WORKERS=2 GO=""
   while [ $# -gt 0 ]; do
     case "$1" in
       --outdir)  [ $# -ge 2 ] && [ -n "$2" ] || die2 "--outdir 需要一个非空值"; OUTDIR=$2;  shift 2 ;;
@@ -304,7 +306,7 @@ cmd_demo() {
   done
 
   ensure_env
-  mkdir -p "$OUTDIR/demo_src"
+  mkdir -p "$SRCDIR" "$OUTDIR"
   ensure_outdir_ignored "$OUTDIR"
 
   local total=5 t0
@@ -312,20 +314,20 @@ cmd_demo() {
 
   echo "[1/$total] 合成演示视频（30s move + 30s occlude）"
   t0=$(date +%s)
-  "$FACEBLUR" demo-video "$OUTDIR/demo_src/move.mp4" --duration 30 --scenario move >/dev/null
-  "$FACEBLUR" demo-video "$OUTDIR/demo_src/occlude.mp4" --duration 30 --scenario occlude >/dev/null
+  "$FACEBLUR" demo-video "$SRCDIR/move.mp4" --duration 30 --scenario move >/dev/null
+  "$FACEBLUR" demo-video "$SRCDIR/occlude.mp4" --duration 30 --scenario occlude >/dev/null
   echo "  完成（$(( $(date +%s) - t0 ))s）"
 
   echo "[2/$total] single 单进程处理 occlude.mp4"
   t0=$(date +%s)
-  "$FACEBLUR" single "$OUTDIR/demo_src/occlude.mp4" \
+  "$FACEBLUR" single "$SRCDIR/occlude.mp4" \
     "$OUTDIR/single_occlude_blurred.mp4" >/dev/null
   echo "  耗时 $(( $(date +%s) - t0 ))s"
 
   echo "[3/$total] pipeline 批量处理两段（共享 Worker 池 ×${WORKERS}）"
   t0=$(date +%s)
   set +e
-  "$FACEBLUR" pipeline "$OUTDIR/demo_src/move.mp4" "$OUTDIR/demo_src/occlude.mp4" \
+  "$FACEBLUR" pipeline "$SRCDIR/move.mp4" "$SRCDIR/occlude.mp4" \
     --outdir "$OUTDIR" --workdir "$OUTDIR/work" --workers "$WORKERS" --segment 30 >/dev/null
   set -e
   echo "  耗时 $(( $(date +%s) - t0 ))s（对比结论看当场数字：本机单进程若已吃满 CPU，分片无净加速、收益在批量摊销）"
@@ -346,7 +348,7 @@ cmd_demo() {
     trap stop_gocp EXIT INT TERM
     echo "[go] gocp 控制面：${GO_URL}"
     set +e
-    "$FACEBLUR" pipeline "$OUTDIR/demo_src/move.mp4" "$OUTDIR/demo_src/occlude.mp4" \
+    "$FACEBLUR" pipeline "$SRCDIR/move.mp4" "$SRCDIR/occlude.mp4" \
       --outdir "$OUTDIR/go-mode" --workdir "$OUTDIR/work-go" \
       --workers "$WORKERS" --segment 30 --cp-url "$GO_URL" >/dev/null
     set -e

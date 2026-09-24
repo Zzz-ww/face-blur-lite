@@ -2,6 +2,8 @@
 
 > 2026-09-24 ｜ 状态：设计已确认（三问定向 + 七节提案 + qc_failed=1 裁决），已实施（feat/blur-sh）
 >
+> 2026-09-25 修订：目录分离——源片与生成物分家，demo 源片由 `<outdir>/demo_src/` 迁至独立源片目录 `inputs/demo/`（`inputs/` 整体 gitignore，隔离结论不变）。§4/§7 中 `demo_src/` 相关路径按此理解；完整约定见 `outputs/README.md`（本地）。
+>
 > 配套：实施计划见 `docs/superpowers/plans/`（后续 writing-plans 产出）。
 
 ## 1. 背景与目标
