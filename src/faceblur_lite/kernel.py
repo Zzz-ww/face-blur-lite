@@ -40,7 +40,8 @@ def process_video(input_path: str, output_path: str,
     t0 = time.time()
     meta = probe(input_path)
     detector = YuNetDetector(model_path, conf_thr=p.det_conf)
-    tracker = Tracker(high_thr=p.high_thr, low_thr=p.low_thr, max_age=p.max_age)
+    tracker = Tracker(high_thr=p.high_thr, low_thr=p.low_thr, max_age=p.max_age,
+                      frame_wh=(meta.width, meta.height))
 
     face_frames: list[bool] = []
     rd = FFmpegReader(input_path)

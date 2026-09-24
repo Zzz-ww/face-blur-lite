@@ -55,12 +55,14 @@ def associate(tracks_boxes: list, det_boxes: list,
 
 class Tracker:
     def __init__(self, high_thr: float = 0.5, low_thr: float = 0.3,
-                 iou_thr: float = 0.1, max_age: int = 3, alpha: float = 0.6):
+                 iou_thr: float = 0.1, max_age: int = 3, alpha: float = 0.6,
+                 frame_wh: tuple[int, int] | None = None):
         self.high_thr = high_thr
         self.low_thr = low_thr
         self.iou_thr = iou_thr
         self.max_age = max_age
         self.alpha = alpha
+        self.frame_wh = frame_wh   # 注入时启用出画剪枝（BUG-009）
         self.tracks: list[Track] = []
         self._next_id = 1
 
@@ -73,6 +75,13 @@ class Tracker:
     def predict(self) -> list[Track]:
         for t in self.tracks:
             t.box = t.box + t.vel
+        if self.frame_wh is not None:
+            # 出画剪枝（ghost 剪枝的边界延伸）：完全出画的 track 无脱敏价值，
+            # 留着只会把"有人脸段"虚假延长；半出画保留（画内还有脸）
+            w, h = self.frame_wh
+            self.tracks = [t for t in self.tracks
+                           if t.box[0] < w and t.box[1] < h
+                           and t.box[2] > 0 and t.box[3] > 0]
         return self.tracks
 
     def update(self, dets: list[Det], gap: int = 1) -> list[Track]:

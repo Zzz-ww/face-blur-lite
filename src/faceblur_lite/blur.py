@@ -6,24 +6,30 @@ import numpy as np
 
 
 def expand_box(box: np.ndarray, frame_w: int, frame_h: int,
-               margin: float = 0.15) -> tuple[int, int, int, int]:
-    """框四边外扩 margin 比例（按宽高较大者），clip 到帧内，返回整数像素。"""
+               margin: float = 0.15) -> tuple[int, int, int, int] | None:
+    """框四边外扩 margin 比例（按宽高较大者），clip 到帧内，返回整数像素；
+    框与画面无交（完全出画）返回 None（BUG-009：x1 越上界曾致空切片崩溃）。"""
     x1, y1, x2, y2 = (float(v) for v in box)
     m = margin * max(x2 - x1, y2 - y1)
     x1 = max(0, int(round(x1 - m)))
     y1 = max(0, int(round(y1 - m)))
     x2 = min(frame_w, int(round(x2 + m)))
     y2 = min(frame_h, int(round(y2 + m)))
-    return x1, y1, max(x2, x1 + 1), max(y2, y1 + 1)
+    if x1 >= x2 or y1 >= y2:
+        return None
+    return x1, y1, x2, y2
 
 
 def blur_regions(frame: np.ndarray, boxes: list[np.ndarray],
                  margin: float = 0.15) -> np.ndarray:
-    """对每个 xyxy 框外扩后做高斯模糊，返回新帧。"""
+    """对每个 xyxy 框外扩后做高斯模糊，返回新帧；完全出画的框跳过。"""
     out = frame.copy()
     h, w = frame.shape[:2]
     for box in boxes:
-        x1, y1, x2, y2 = expand_box(box, w, h, margin)
+        r = expand_box(box, w, h, margin)
+        if r is None:
+            continue
+        x1, y1, x2, y2 = r
         crop = out[y1:y2, x1:x2]
         # 奇数核；比例 0.75：σ 须与人脸低频结构尺度相当，否则 std 验收不降
         # （2026-09-24 执行期调参，原 0.15 只抹高频细节）

@@ -1,3 +1,5 @@
+import numpy as np
+
 from faceblur_lite.detector import Det
 from faceblur_lite.tracker import Tracker
 
@@ -52,3 +54,22 @@ def test_unmatched_high_conf_births_new_track():
     tr.update([d(100, 100)], gap=1)
     tr.update([d(100, 100), d(400, 400)], gap=1)
     assert len(tr.tracks) == 2
+
+
+def test_predict_prunes_fully_outside_tracks():
+    """BUG-009：注入 frame_wh 时，完全出画的 track 在 predict 后剪掉
+    （人脸已离画，无脱敏价值，segments 也不再虚假延长）。"""
+    tr = Tracker(frame_wh=(640, 480))
+    tr.update([d(100, 100)], gap=1)
+    tr.tracks[0].box = np.array([700.0, 100.0, 740.0, 140.0])   # 完全出右画
+    assert tr.predict() == []
+    # 半出画保留（画内还有脸，继续糊画内部分）
+    tr2 = Tracker(frame_wh=(640, 480))
+    tr2.update([d(100, 100)], gap=1)
+    tr2.tracks[0].box = np.array([620.0, 100.0, 700.0, 140.0])  # 半出画
+    assert len(tr2.predict()) == 1
+    # 未注入 frame_wh：保留纯运动学语义（旧调用方/单元测试不受影响）
+    tr3 = Tracker()
+    tr3.update([d(100, 100)], gap=1)
+    tr3.tracks[0].box = np.array([700.0, 100.0, 740.0, 140.0])
+    assert len(tr3.predict()) == 1
