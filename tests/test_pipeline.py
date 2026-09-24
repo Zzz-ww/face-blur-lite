@@ -62,3 +62,19 @@ def test_batch_failure_isolation(tmp_path, move_video):
     by_status = {r.input_path: r.status for r in results}
     assert by_status[move_video[0]] == "done"
     assert by_status["/nonexistent.mp4"] == "failed"
+
+
+def test_batch_same_stem_collision_isolated(move_video, tmp_path):
+    """终审修复回归：同 stem 输出碰撞→后者显式 failed，前者正常完成（失败隔离）。"""
+    import shutil as _sh
+    d1, d2 = tmp_path / "d1", tmp_path / "d2"
+    d1.mkdir(); d2.mkdir()
+    _sh.copy(move_video[0], d1 / "a.mp4")
+    _sh.copy(move_video[0], d2 / "a.mp4")
+    res = run_batch([str(d1 / "a.mp4"), str(d2 / "a.mp4")],
+                    outdir=str(tmp_path / "o"), workdir=str(tmp_path / "w"),
+                    workers=2, segment_s=2.0)
+    by_in = {r.input_path: r for r in res}
+    assert by_in[str(d1 / "a.mp4")].status == "done"
+    assert by_in[str(d2 / "a.mp4")].status == "failed"
+    assert "碰撞" in (by_in[str(d2 / "a.mp4")].error or "")

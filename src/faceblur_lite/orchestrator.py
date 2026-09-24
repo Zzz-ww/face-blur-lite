@@ -105,10 +105,28 @@ def run_batch(inputs: list[str], outdir: str, workdir: str,
               params: KernelParams | None = None,
               qc_sample_fps: float = 1.0,
               cp_url: str | None = None) -> list[PipelineResult]:
-    """批量：输出到 outdir/<stem>_blurred.mp4。R10。"""
-    specs = [(inp, _output_for(inp, outdir)) for inp in inputs]
+    """批量：输出到 outdir/<stem>_blurred.mp4。R10。
+
+    同 stem 输出碰撞（相机卡两目录各一张 DSC_0001 场景）：后到者显式
+    failed（复用提交期失败隔离形状），先到者正常处理，不静默重命名。"""
+    t0 = time.time()
+    specs: list[tuple[str, str]] = []
+    collisions: list[PipelineResult] = []
+    seen: dict[str, str] = {}                    # 输出路径 → 首个占用输入
+    for inp in inputs:
+        outp = _output_for(inp, outdir)
+        if outp in seen:
+            collisions.append(PipelineResult(
+                "", inp, outp, "failed", None, time.time() - t0, 0,
+                f"输出名碰撞: {inp} 与 {seen[outp]} 最终输出同为 {outp}"
+                "，后到者显式失败（先到者正常处理）"))
+        else:
+            seen[outp] = inp
+            specs.append((inp, outp))
+    if not specs:                                # 全部碰撞：无需起 Worker 池
+        return collisions
     return _orchestrate(specs, workdir, workers, segment_s,
-                        params, qc_sample_fps, cp_url)
+                        params, qc_sample_fps, cp_url) + collisions
 
 
 def run_pipeline(input_path: str, output_path: str, workdir: str,
