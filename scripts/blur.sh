@@ -16,6 +16,8 @@ usage() { cat <<'EOF'
 
 run 选项：
   --outdir DIR    输出目录（默认 outputs/；生成结果不进 git）
+                  整洁约定：实验/多配置/批量跑进独立会话目录，如
+                  --outdir outputs/20260925-实验名/（见 outputs/README.md）
   --workers N     Worker 数，默认 2（仅 pipeline 模式）
   --segment S     切片秒数，默认 30（仅 pipeline 模式）
   --mode M        auto（默认）| single | pipeline

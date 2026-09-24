@@ -33,6 +33,8 @@ python -m venv venv && ./venv/bin/pip install -e ".[dev]"
 ./venv/bin/faceblur-lite status work-pipeline/pipeline.db
 ```
 
+输出整洁约定：单视频跑默认落 `outputs/` 根（一进一出）；实验/多配置/批量先进带日期的会话目录（`--outdir outputs/20260925-实验名/`），详见 `outputs/README.md`。
+
 子命令速查：`single`（单进程内核）｜`pipeline`（批量并行）｜`worker`（独立常驻 Worker：`--cp-url` 连 Go 控制面或 `--db` 连本地库，容器/跨机扩容单元）｜`split` / `merge`（算子独立调用，DAG 引擎节点模板可直接引用）｜`qc`｜`demo-video`｜`stats`｜`status`。
 
 ## 架构
