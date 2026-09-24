@@ -6,11 +6,14 @@ import numpy as np
 
 
 def expand_box(box: np.ndarray, frame_w: int, frame_h: int,
-               margin: float = 0.15) -> tuple[int, int, int, int] | None:
+               margin: float = 0.15,
+               margin_px: int = 0) -> tuple[int, int, int, int] | None:
     """框四边外扩 margin 比例（按宽高较大者），clip 到帧内，返回整数像素；
-    框与画面无交（完全出画）返回 None（BUG-009：x1 越上界曾致空切片崩溃）。"""
+    框与画面无交（完全出画）返回 None（BUG-009：x1 越上界曾致空切片崩溃）。
+    margin_px 为像素下限（BUG-012）：小脸的比例 margin 只有 2-4px，盖不住
+    检测框抖动露出的脸缘，取 max(比例, 下限)。"""
     x1, y1, x2, y2 = (float(v) for v in box)
-    m = margin * max(x2 - x1, y2 - y1)
+    m = max(margin * max(x2 - x1, y2 - y1), margin_px)
     x1 = max(0, int(round(x1 - m)))
     y1 = max(0, int(round(y1 - m)))
     x2 = min(frame_w, int(round(x2 + m)))
@@ -21,12 +24,13 @@ def expand_box(box: np.ndarray, frame_w: int, frame_h: int,
 
 
 def blur_regions(frame: np.ndarray, boxes: list[np.ndarray],
-                 margin: float = 0.15) -> np.ndarray:
+                 margin: float = 0.15,
+                 margin_px: int = 0) -> np.ndarray:
     """对每个 xyxy 框外扩后做高斯模糊，返回新帧；完全出画的框跳过。"""
     out = frame.copy()
     h, w = frame.shape[:2]
     for box in boxes:
-        r = expand_box(box, w, h, margin)
+        r = expand_box(box, w, h, margin, margin_px)
         if r is None:
             continue
         x1, y1, x2, y2 = r

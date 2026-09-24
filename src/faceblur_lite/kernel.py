@@ -15,6 +15,7 @@ class KernelParams:
     det_every: int = 3          # 每 N 帧检测一次，中间帧用跟踪预测补位
     det_conf: float = 0.3       # 源域检测阈值（宁可多糊）
     margin: float = 0.15        # 模糊框外扩比例
+    margin_px: int = 8          # 外扩像素下限（BUG-012：小脸比例外扩仅 2-4px 盖不住框抖动）
     crf: int = 20
     high_thr: float = 0.5       # 跟踪高分阈值
     low_thr: float = 0.3        # 跟踪低分阈值（二轮救活下限）
@@ -58,7 +59,8 @@ def process_video(input_path: str, output_path: str,
                 rep.predicted_frames += 1
             boxes = [t.box for t in active]
             face_frames.append(bool(boxes))
-            wr.write(blur_regions(frame, boxes, margin=p.margin))
+            wr.write(blur_regions(frame, boxes, margin=p.margin,
+                                  margin_px=p.margin_px))
 
     rep.frames = len(face_frames)
     rep.track_count = tracker.total_tracks
