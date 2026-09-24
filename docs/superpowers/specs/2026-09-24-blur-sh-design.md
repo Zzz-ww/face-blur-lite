@@ -61,6 +61,10 @@ bootstrap（§6）→ 输入展开 → 碰撞预检 → 引擎选择 → 执行 
 - `--mode single` + 多输入：逐个串行跑 single（语义=强制单进程引擎），逐个报告
 - single 模式下 `--workers/--segment` 被忽略时打印一行提示（不静默吞参数）
 
+**输出目录与仓库隔离（硬保证：生成结果不进远端）**：
+- 默认 `--outdir outputs/`——`.gitignore` 自 Task 0 起整目录忽略（`outputs/`、`work-*/`）；workdir `<outdir>/work`、demo 的 `demo_src/` 均在其下，默认路径生成的任何文件天然不进 git
+- 自定义 `--outdir` 保险：脚本对解析后的输出目录跑 `git check-ignore`——在仓库外 → 天然安全，无操作；在仓库内且未被忽略 → **自动追加一行到 `.gitignore`**（带 `# blur.sh 自动追加：输出目录` 注记）并打印提示——"生成结果不上传远端"是脚本保证，不靠用户记性
+
 **聚合报告**：
 - pipeline 模式：跑完自动 `faceblur-lite stats <workdir>/pipeline.db` + 每个输出一行 qc 摘要
 - single 模式：kernel JSON 报告摘要（帧数/检测数/track 数/人脸时间段数/耗时）+ qc 一次
