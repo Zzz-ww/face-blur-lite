@@ -1847,6 +1847,8 @@ git commit -m "feat: 控制面契约——ControlPlane 协议 + SQLite 参考实
 `tests/test_split_merge.py`：
 
 ```python
+from pathlib import Path
+
 from conftest import requires_assets
 
 from faceblur_lite.ffmpeg_io import probe
@@ -1868,6 +1870,18 @@ def test_split_and_merge_roundtrip(move_video, tmp_path):
     out = str(tmp_path / "merged.mp4")
     merge_chunks(chunks, out)
     assert abs(probe(out).duration_s - 6.0) < 1.0
+
+
+def test_merge_relative_paths(move_video, monkeypatch, tmp_path):
+    """BUG-007 回归（2026-09-24 执行期追加）：ffmpeg concat demuxer 按列表
+    文件所在目录解析相对条目——输出目录 ≠ chunk 目录时相对条目 ENOENT，
+    merger 必须写绝对路径。"""
+    monkeypatch.chdir(tmp_path)          # 全程相对路径，复现用户 CLI 场景
+    chunks = split_video(move_video[0], "chunks", segment_s=2.0)
+    assert len(chunks) >= 2
+    Path("out").mkdir()                  # 输出父目录（编排器/CLI 职责）
+    merge_chunks(chunks, "out/merged.mp4")
+    assert abs(probe("out/merged.mp4").duration_s - 6.0) < 1.0
 ```
 
 - [ ] **Step 2: 运行确认失败**
