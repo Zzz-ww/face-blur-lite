@@ -20,6 +20,11 @@ def run_blur(*args, timeout=300):
                           capture_output=True, text=True, timeout=timeout)
 
 
+def run_blur_from(base, *args, timeout=300):
+    return subprocess.run(["bash", str(base / "scripts" / "blur.sh"), *args],
+                          capture_output=True, text=True, timeout=timeout)
+
+
 def test_bad_paths_exit_2(tmp_path):
     r = run_blur("run", str(tmp_path / "nope.mp4"))
     assert r.returncode == 2
@@ -125,3 +130,12 @@ def test_go_with_single_mode_conflict(move_video, tmp_path):
                  "--go", "--mode", "single")
     assert r.returncode == 2
     assert "矛盾" in r.stderr
+
+
+def test_outdir_repo_root_via_symlink(tmp_path):
+    """符号链接调用 + --outdir 指向链接路径也必须被仓库根护栏拦下（REPO 用 pwd -P）。"""
+    link = tmp_path / "repo-link"
+    link.symlink_to(ROOT)
+    r = run_blur_from(link, "run", str(tmp_path / "nope.mp4"), "--outdir", str(link))
+    assert r.returncode == 2
+    assert "仓库根" in r.stderr

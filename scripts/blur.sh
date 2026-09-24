@@ -3,7 +3,7 @@
 # spec：docs/superpowers/specs/2026-09-24-blur-sh-design.md
 # 退出码：0=全 done 且 qc 全过；1=存在 failed/qc_failed；2=环境/输入/参数错误
 set -euo pipefail
-REPO=$(cd "$(dirname "$0")/.." && pwd)
+REPO=$(cd "$(dirname "$0")/.." && pwd -P)
 cd "$REPO"
 
 FACEBLUR=./venv/bin/faceblur-lite
@@ -148,11 +148,11 @@ qc_one() {  # $1=输出文件
   fi
 }
 
-report_pipeline() {  # $1=workdir；INPUTS/OUTDIR 来自 cmd_run
+report_pipeline() {  # $1=workdir；$2=GO 标志（非空=--go 模式优先 gocp.db）；INPUTS/OUTDIR 来自 cmd_run
   echo ""
   echo "── 批量指标 ──"
   local db="$1/pipeline.db"
-  if [ ! -f "$db" ] && [ -f "$1/gocp.db" ]; then db="$1/gocp.db"; fi
+  if { [ -n "$2" ] || [ ! -f "$db" ]; } && [ -f "$1/gocp.db" ]; then db="$1/gocp.db"; fi
   if [ -f "$db" ]; then
     "$FACEBLUR" stats "$db" || true
   else
@@ -256,7 +256,7 @@ cmd_run() {
     fi
     rc=$?
     set -e
-    report_pipeline "$WORKDIR"
+    report_pipeline "$WORKDIR" "$GO"
     stop_gocp
     trap - EXIT INT TERM
   else
