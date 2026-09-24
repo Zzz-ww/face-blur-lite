@@ -1,6 +1,6 @@
 # face-blur-lite 详细设计文档
 
-> 版本 v1.4 ｜ 2026-09-24（v1.4=契约 v1.1：终态守卫 + attempt 记账对齐 + DDL 内联 + get_chunk；v1.3=实现校对 + §8 验收指标回填实测值；v1.2=R11-R13 演进就绪 + 全图示 Mermaid 化） ｜ 状态：MVP Task 0-11 已实现（32 测试绿 + 批量冒烟通过），gocp（Task 12）待实施
+> 版本 v1.4 ｜ 2026-09-24（v1.4=契约 v1.1：终态守卫 + attempt 记账对齐 + DDL 内联 + get_chunk；v1.3=实现校对 + §8 验收指标回填实测值；v1.2=R11-R13 演进就绪 + 全图示 Mermaid 化） ｜ 状态：MVP Task 0-11.5 已实现（38 测试绿 + 批量冒烟通过），gocp（Task 12）待实施
 >
 > 图示说明：本文全部图为 Mermaid（GitHub / VSCode 预览原生渲染），含 flowchart（架构/数据流/DAG/路线图）、stateDiagram（状态机×2）、sequenceDiagram（原子 Join / kill-9 恢复）、classDiagram（契约/数据面）。
 >

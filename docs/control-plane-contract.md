@@ -53,8 +53,8 @@ chunks 终态（done/failed）不可逆——迟到信号不得回退。
 | claim_chunk | 取最早 pending（video 须 processing，按 created_at,idx 序）→ running + lease_until | 并发互斥；失败视频自动出局 |
 | complete_chunk | 置 done+metrics（**仅 running 态受理**，迟到 ack 返回 False 不计 join）；若该 video 全 done → video merging | **恰好一个调用者拿到 merge 认领（原子 Join）** |
 | complete_merge | video → qc_wait（记 merged_path） | — |
-| fail_chunk | 终态（done/failed）不受理；受理则 attempt+1（含耗尽分支）：未耗尽 → pending 重派；耗尽 → chunk+video failed（video 仅自 processing 翻转） | attempt 单调递增；终态不可逆 |
-| reclaim_expired | running 且 lease_until 已过期且 **video=processing** → 同 fail_chunk 语义 | 僵尸回收（Worker 暴死）；终态视频错误原因不被改写 |
+| fail_chunk | 终态（done/failed）不受理；受理则 attempt+1（含耗尽分支）：未耗尽 → pending 重派（记 error）；耗尽 → chunk failed（记 error/finished_at）+ video failed（记 error/finished_at，仅自 processing 翻转） | attempt 单调递增；终态不可逆 |
+| reclaim_expired | running 且 lease_until 已过期且 **video=processing**：未耗尽 → pending 重派（attempt+1）；耗尽 → chunk failed（attempt+1，**不写 chunk error/finished_at**）+ video failed（error='lease 过期且重试耗尽'） | 僵尸回收（Worker 暴死）；终态视频错误原因不被改写；耗尽分支与 fail_chunk 在 chunk 字段写入上**有意不同**（失败原因记在 video 级） |
 | finish_video | video → done / qc_failed | 仅编排器调用 |
 | get_chunk | 读单 chunk 全字段（只读，不存在抛 KeyError） | 契约测试/观测断言 |
 
