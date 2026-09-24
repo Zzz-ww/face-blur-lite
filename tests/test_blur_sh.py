@@ -71,3 +71,15 @@ def test_custom_outdir_inside_repo_gitignored(tmp_path):
         if probe.exists():
             import shutil
             shutil.rmtree(probe)
+
+
+def test_option_missing_value_exit_2(tmp_path):
+    """选项缺值（--outdir 收尾）→ 干净 exit 2，不是 bash unbound 报错的 1。"""
+    r = run_blur("run", str(tmp_path / "nope.mp4"), "--outdir")
+    assert r.returncode == 2
+    assert "需要一个" in r.stderr
+
+
+def test_option_empty_value_exit_2(tmp_path):
+    r = run_blur("run", str(tmp_path / "nope.mp4"), "--outdir", "")
+    assert r.returncode == 2

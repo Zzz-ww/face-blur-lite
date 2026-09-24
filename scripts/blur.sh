@@ -35,12 +35,13 @@ ensure_env() {
   command -v ffprobe >/dev/null 2>&1 || die2 "缺少 ffprobe（随 ffmpeg 安装）：brew install ffmpeg"
   if [ ! -x "$FACEBLUR" ]; then
     echo "[bootstrap] venv 缺失，创建并安装依赖..."
-    python3 -m venv venv
-    ./venv/bin/pip install -e ".[dev]"
+    command -v python3 >/dev/null 2>&1 || die2 "缺少 python3（brew install python 或装 Xcode CLT）"
+    python3 -m venv venv || die2 "venv 创建失败"
+    ./venv/bin/pip install -e ".[dev]" || die2 "依赖安装失败（pip install -e .[dev]）"
   fi
   if [ ! -f models/face_detection_yunet_2023mar.onnx ] || [ ! -f assets/lena.jpg ]; then
     echo "[bootstrap] 模型/测试资产缺失，下载..."
-    bash scripts/download_assets.sh
+    bash scripts/download_assets.sh || die2 "资产下载失败（网络？）"
   fi
 }
 
@@ -110,10 +111,10 @@ cmd_run() {
   local W_SET="" S_SET="" raw=()
   while [ $# -gt 0 ]; do
     case "$1" in
-      --outdir)  OUTDIR=$2;  shift 2 ;;
-      --workers) WORKERS=$2; W_SET=1; shift 2 ;;
-      --segment) SEGMENT=$2; S_SET=1; shift 2 ;;
-      --mode)    MODE=$2;    shift 2 ;;
+      --outdir)  [ $# -ge 2 ] && [ -n "$2" ] || die2 "--outdir 需要一个非空值"; OUTDIR=$2;  shift 2 ;;
+      --workers) [ $# -ge 2 ] && [ -n "$2" ] || die2 "--workers 需要一个非空值"; WORKERS=$2; W_SET=1; shift 2 ;;
+      --segment) [ $# -ge 2 ] && [ -n "$2" ] || die2 "--segment 需要一个非空值"; SEGMENT=$2; S_SET=1; shift 2 ;;
+      --mode)    [ $# -ge 2 ] && [ -n "$2" ] || die2 "--mode 需要一个非空值"; MODE=$2;    shift 2 ;;
       --go)      GO=1;       shift ;;
       -h|--help) usage; return 0 ;;
       --*) die2 "未知选项：$1" ;;
