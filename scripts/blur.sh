@@ -30,13 +30,29 @@ EOF
 die2() { echo "错误：$*" >&2; exit 2; }
 
 # ---------- bootstrap（spec §6：管仓库内状态，不管系统状态） ----------
+# 选版：项目 requires-python >=3.10，且 pyproject-only（PEP 660 可编辑安装需 pip>=21.3）。
+# 默认 python3 可能过老（BUG-008）：按 python3→python3.13→…→python3.10 取首个 ≥3.10。
+pick_python() {
+  local p v
+  for p in python3 python3.13 python3.12 python3.11 python3.10; do
+    command -v "$p" >/dev/null 2>&1 || continue
+    v=$("$p" -c 'import sys;print(sys.version_info[0]*100+sys.version_info[1])' 2>/dev/null) || continue
+    [ "$v" -ge 310 ] 2>/dev/null || continue
+    echo "$p"
+    return 0
+  done
+  return 1
+}
+
 ensure_env() {
   command -v ffmpeg  >/dev/null 2>&1 || die2 "缺少 ffmpeg：brew install ffmpeg"
   command -v ffprobe >/dev/null 2>&1 || die2 "缺少 ffprobe（随 ffmpeg 安装）：brew install ffmpeg"
   if [ ! -x "$FACEBLUR" ]; then
     echo "[bootstrap] venv 缺失，创建并安装依赖..."
-    command -v python3 >/dev/null 2>&1 || die2 "缺少 python3（brew install python 或装 Xcode CLT）"
-    python3 -m venv venv || die2 "venv 创建失败"
+    local PYBIN
+    PYBIN=$(pick_python) || die2 "未找到 python ≥3.10（项目 requires-python >=3.10；brew install python@3.11）"
+    "$PYBIN" -m venv venv || die2 "venv 创建失败"
+    ./venv/bin/pip install --upgrade pip >/dev/null || die2 "pip 升级失败"
     ./venv/bin/pip install -e ".[dev]" || die2 "依赖安装失败（pip install -e .[dev]）"
   fi
   if [ ! -f models/face_detection_yunet_2023mar.onnx ] || [ ! -f assets/lena.jpg ]; then

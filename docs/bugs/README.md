@@ -11,6 +11,7 @@ SDD（subagent-driven development）执行期发现并修复的 bug，一 bug �
 | [005](005-blur-kernel-ratio.md) | Task 5 | 0.15 核只抹高频，低频对比存活 | 已修复 |
 | [006](006-orchestrator-mkdir.md) | Task 10 | 切片快路径不建目录，Worker ENOENT 耗尽重试 | 已修复 |
 | [007](007-merger-relative-paths.md) | Task 11 | concat 相对条目按列表目录解析，合并 ENOENT 卡 merging | 已修复 |
+| [008](008-bootstrap-python-floor.md) | blur.sh Task 1 | 默认 python3<3.10 双地板（PEP 660 需 pip≥21.3 + requires-python≥3.10）自举失败 | 已修复 |
 
 环境类问题（非代码 bug）见 [env-notes.md](env-notes.md)。
 
