@@ -103,14 +103,18 @@ class SqliteControlPlane:
         """置 done；若该 video 全部 done，同一事务内认领 merge。
 
         并发下恰好一个调用者拿到 True——原子 Join（scatter-gather 门控）。
+        仅 running 态受理：迟到 ack（chunk 已被重派或终态）返回 False。
         """
         with _connect(self.db_path) as c:
             c.execute("BEGIN IMMEDIATE")
             row = c.execute("SELECT * FROM chunks WHERE id=?",
                             (chunk_id,)).fetchone()
-            c.execute(
+            cur = c.execute(
                 "UPDATE chunks SET status='done', metrics=?, finished_at=? "
-                "WHERE id=?", (json.dumps(metrics), time.time(), chunk_id))
+                "WHERE id=? AND status='running'",
+                (json.dumps(metrics), time.time(), chunk_id))
+            if cur.rowcount == 0:
+                return False
             left = c.execute(
                 "SELECT COUNT(*) FROM chunks WHERE video_id=? AND status!='done'",
                 (row["video_id"],)).fetchone()[0]
@@ -130,18 +134,24 @@ class SqliteControlPlane:
 
     def fail_chunk(self, chunk_id: str, error: str,
                    max_attempts: int = 3) -> None:
+        """终态（done/failed）不可逆：迟到 fail 不受理（BUG-007 场景——
+        merge 崩溃后对已完成 chunk 的 fail 不得把 done 翻回 pending）。
+        每次受理 attempt+1（含耗尽分支——终态记录最终计数，与 reclaim 对齐）。"""
         with _connect(self.db_path) as c:
             c.execute("BEGIN IMMEDIATE")
             row = c.execute("SELECT * FROM chunks WHERE id=?",
                             (chunk_id,)).fetchone()
+            if row is None or row["status"] in ("done", "failed"):
+                return
+            now = time.time()
             if row["attempt"] + 1 >= max_attempts:
-                now = time.time()
                 c.execute(
-                    "UPDATE chunks SET status='failed', error=?, "
-                    "finished_at=? WHERE id=?", (error, now, chunk_id))
+                    "UPDATE chunks SET status='failed', attempt=attempt+1, "
+                    "error=?, finished_at=? WHERE id=?",
+                    (error, now, chunk_id))
                 c.execute(
                     "UPDATE videos SET status='failed', error=?, "
-                    "finished_at=? WHERE id=?",
+                    "finished_at=? WHERE id=? AND status='processing'",
                     (error, now, row["video_id"]))
             else:
                 c.execute(
@@ -150,13 +160,15 @@ class SqliteControlPlane:
                     (error, chunk_id))
 
     def reclaim_expired(self, max_attempts: int = 3) -> int:
-        """lease 过期的 running chunk → pending 重派；耗尽 → video failed。"""
+        """lease 过期的 running chunk → pending 重派；耗尽 → video failed。
+        仅回收 video 仍 processing 的 chunk：终态视频的失败原因不被改写。"""
         now = time.time()
         with _connect(self.db_path) as c:
             c.execute("BEGIN IMMEDIATE")
             rows = c.execute(
-                "SELECT * FROM chunks WHERE status='running' "
-                "AND lease_until < ?", (now,)).fetchall()
+                """SELECT c.* FROM chunks c JOIN videos v ON c.video_id = v.id
+                   WHERE c.status='running' AND c.lease_until < ?
+                   AND v.status='processing'""", (now,)).fetchall()
             for r in rows:
                 if r["attempt"] + 1 >= max_attempts:
                     c.execute(
@@ -165,7 +177,8 @@ class SqliteControlPlane:
                     c.execute(
                         "UPDATE videos SET status='failed', "
                         "error='lease 过期且重试耗尽', finished_at=? "
-                        "WHERE id=?", (now, r["video_id"]))
+                        "WHERE id=? AND status='processing'",
+                        (now, r["video_id"]))
                 else:
                     c.execute(
                         """UPDATE chunks SET status='pending',
@@ -179,6 +192,14 @@ class SqliteControlPlane:
                             (video_id,)).fetchone()
             if row is None:
                 raise KeyError(video_id)
+            return dict(row)
+
+    def get_chunk(self, chunk_id: str) -> dict:
+        with _connect(self.db_path) as c:
+            row = c.execute("SELECT * FROM chunks WHERE id=?",
+                            (chunk_id,)).fetchone()
+            if row is None:
+                raise KeyError(chunk_id)
             return dict(row)
 
     def chunk_outputs(self, video_id: str) -> list[str]:

@@ -6,12 +6,44 @@
 并通过 `tests/test_contract.py` 的同等场景测试。
 
 ## 1. 存储 schema
-（`videos` / `chunks` 两表 DDL，与 `state.py` 逐字一致；Go 实现建同构表。
-时戳为 Unix epoch 秒，浮点）
+
+（时戳为 Unix epoch 秒，浮点；与 `state.py` 逐字一致；Go 实现建同构表）
+
+```sql
+CREATE TABLE IF NOT EXISTS videos(
+    id TEXT PRIMARY KEY,
+    input_path TEXT NOT NULL,
+    output_path TEXT NOT NULL,
+    merged_path TEXT,
+    status TEXT NOT NULL,
+    error TEXT,
+    created_at REAL NOT NULL,
+    finished_at REAL)
+```
+
+```sql
+CREATE TABLE IF NOT EXISTS chunks(
+    id TEXT PRIMARY KEY,
+    video_id TEXT NOT NULL REFERENCES videos(id),
+    idx INTEGER NOT NULL,
+    input_path TEXT NOT NULL,
+    output_path TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    attempt INTEGER NOT NULL DEFAULT 0,
+    worker_id TEXT,
+    lease_until REAL,
+    metrics TEXT,
+    enqueued_at REAL NOT NULL,
+    started_at REAL,
+    finished_at REAL,
+    error TEXT,
+    UNIQUE(video_id, idx))
+```
 
 ## 2. 状态机
 videos: processing → merging → qc_wait → done | qc_failed | failed
 chunks: pending → running → done | failed
+chunks 终态（done/failed）不可逆——迟到信号不得回退。
 合法迁移仅由第 3 节操作触发；状态只能经控制面操作变更（单写入口）。
 
 ## 3. 操作语义（每个操作 = 一个事务）
@@ -19,17 +51,19 @@ chunks: pending → running → done | failed
 |---|---|---|
 | submit_video | 建 video(processing) + N 个 chunk(pending) | 原子出现 |
 | claim_chunk | 取最早 pending（video 须 processing，按 created_at,idx 序）→ running + lease_until | 并发互斥；失败视频自动出局 |
-| complete_chunk | 置 done+metrics；若该 video 全 done → video merging | **恰好一个调用者拿到 merge 认领（原子 Join）** |
+| complete_chunk | 置 done+metrics（**仅 running 态受理**，迟到 ack 返回 False 不计 join）；若该 video 全 done → video merging | **恰好一个调用者拿到 merge 认领（原子 Join）** |
 | complete_merge | video → qc_wait（记 merged_path） | — |
-| fail_chunk | attempt+1：未耗尽 → pending 重派；耗尽 → chunk+video failed | attempt 单调递增 |
-| reclaim_expired | running 且 lease_until 已过期 → 同 fail_chunk 语义 | 僵尸回收（Worker 暴死） |
+| fail_chunk | 终态（done/failed）不受理；受理则 attempt+1（含耗尽分支）：未耗尽 → pending 重派；耗尽 → chunk+video failed（video 仅自 processing 翻转） | attempt 单调递增；终态不可逆 |
+| reclaim_expired | running 且 lease_until 已过期且 **video=processing** → 同 fail_chunk 语义 | 僵尸回收（Worker 暴死）；终态视频错误原因不被改写 |
 | finish_video | video → done / qc_failed | 仅编排器调用 |
+| get_chunk | 读单 chunk 全字段（只读，不存在抛 KeyError） | 契约测试/观测断言 |
 
 ## 4. 不变量
 - 每 chunk 至多一次成功执行（幂等输出由数据面保证，attempt 上限兜底）
 - merge 至多被认领一次
 - lease_until 到期前他人不可重派该 chunk
 - 所有状态变更只经控制面操作
+- 终态不可逆：done/failed 不因迟到信号回退（complete_chunk/fail_chunk 均带状态守卫）
 
 ## 5. 并发实现要点（Go 实现指引）
 - SQLite：WAL + busy_timeout=10000；写事务用 BEGIN IMMEDIATE 取代行锁
