@@ -16,7 +16,7 @@
 
 - 项目根：`/Users/zhujiawei/Desktop/zte/backup/workbackup-main/face-blur-lite/`，独立 git 仓库（父目录不是 git 仓库，Task 0 里 `git init`）
 - 依赖白名单：`opencv-python`、`numpy`、`scipy`、`pytest`（dev）。禁止引入其他运行时依赖
-- Go 侧（仅 Task 12）：Go ≥1.22，唯一外部依赖 `modernc.org/sqlite`（纯 Go 无 CGO，`go build` 即出静态单二进制）。Python 侧不加任何依赖（HTTP 客户端用 stdlib `urllib`）。默认路径零 Go 依赖——没有 go 工具链时 Go 模式测试自动跳过，其余功能不受影响
+- Go 侧（仅 Task 12）：Go ≥1.25（modernc.org/sqlite v1.59.0 的工具链下限，2026-09-24 终审修复波校准），唯一外部依赖 `modernc.org/sqlite`（纯 Go 无 CGO，`go build` 即出静态单二进制）。Python 侧不加任何依赖（HTTP 客户端用 stdlib `urllib`）。默认路径零 Go 依赖——没有 go 工具链时 Go 模式测试自动跳过，其余功能不受影响
 - 系统依赖：ffmpeg/ffprobe 必须在 PATH（兜底：`brew install ffmpeg`）
 - **控制面/数据面边界（契约先行）**：`control.py`（协议）+ `state.py`（SQLite 参考实现）+ `remote.py`（HTTP 适配）+ `gocp/`（Go 服务实现）+ `orchestrator.py` 是控制面；`kernel.py`/`splitter.py`/`merger.py`/`worker.py`/`qc.py` 及其依赖库是数据面。**数据面只准 import `control.py` 协议，不准 import 任何实现（state.py/remote.py）**；数据面不得绕过控制面改任务状态；控制面不得包含任何媒体处理逻辑。契约规范 `docs/control-plane-contract.md` 是跨语言事实标准，任何实现（Python SQLite / Go HTTP）必须通过 `tests/test_contract.py` 的同等场景（参数化双跑）
 - 编码参数全局钉死：`libx264 / preset veryfast / crf 20 / pix_fmt yuv420p / movflags +faststart`；有音轨时 `-c:a copy` 绝不重编（concat 流复制合并的前提）
@@ -458,7 +458,8 @@ def test_writer_reader_roundtrip(tmp_path):
     out = str(tmp_path / "rt.mp4")
     with FFmpegWriter(out, meta) as w:
         for i in range(5):
-            w.write(np.full((48, 64, 3), (i * 40) % 255, dtype=np.uint8))
+            # (i+1)*40：帧值 40..200（原 i*40 首帧=0 与下方 |got[0]-40|<6 断言矛盾，2026-09-24 执行期修正）
+            w.write(np.full((48, 64, 3), ((i + 1) * 40) % 255, dtype=np.uint8))
 
     m = probe(out)
     assert (m.width, m.height) == (64, 48)
@@ -721,7 +722,10 @@ def blur_regions(frame: np.ndarray, boxes: list[np.ndarray],
     for box in boxes:
         x1, y1, x2, y2 = expand_box(box, w, h, margin)
         crop = out[y1:y2, x1:x2]
-        k = max(3, int(min(crop.shape[:2]) * 0.15) // 2 * 2 + 1)  # 奇数核
+        # 核比例 0.75（2026-09-24 执行期修正，原 0.15）：0.15 只抹高频，
+        # 低频对比（发色 vs 肤色）存活——隐私脱敏语义要求"宁可多糊"，
+        # 大核直接摧毁低频结构；实测 std 比 0.15→0.884 / 0.75→0.693
+        k = max(3, int(min(crop.shape[:2]) * 0.75) // 2 * 2 + 1)  # 奇数核
         out[y1:y2, x1:x2] = cv2.GaussianBlur(crop, (k, k), 0)
     return out
 ```
@@ -770,7 +774,7 @@ import pytest
 
 from faceblur_lite.detector import YuNetDetector
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]   # tests/ 上一级=项目根（parents[2] 少一层，2026-09-24 执行期修正）
 MODEL = ROOT / "models" / "face_detection_yunet_2023mar.onnx"
 LENA = ROOT / "assets" / "lena.jpg"
 
@@ -900,7 +904,7 @@ git commit -m "feat: Detector 协议 + YuNet 实现" \
 - Consumes: `Det`（Task 3）
 - Produces:
   - `Track(id, box: np.ndarray(xyxy), last_box: np.ndarray, vel: np.ndarray(4,), hits, misses)` dataclass
-  - `Tracker(high_thr=0.5, low_thr=0.3, iou_thr=0.3, max_age=3, alpha=0.6)`
+  - `Tracker(high_thr=0.5, low_thr=0.3, iou_thr=0.1, max_age=3, alpha=0.6)`（iou_thr 0.3→0.1，2026-09-24 执行期修正：出生首跳 vel=0，40px 框跳 30px 的 IoU=0.143 < 0.3 永不匹配→连锁重生；0.1 对 demo 几何（120px 脸约 6.5px/帧）无影响）
     - `.predict() -> list[Track]`：恒速模型外推一帧（**R6 下一帧坐标预测**）
     - `.update(dets: list[Det], gap: int = 1) -> list[Track]`：高分框匈牙利匹配校正；未匹配 track 用低分框二轮救活；`max_age` 个检测轮无匹配才淘汰
     - `.total_tracks -> int` property：累计出生过的 track 数
@@ -1038,7 +1042,7 @@ def associate(tracks_boxes: list, det_boxes: list,
 
 class Tracker:
     def __init__(self, high_thr: float = 0.5, low_thr: float = 0.3,
-                 iou_thr: float = 0.3, max_age: int = 3, alpha: float = 0.6):
+                 iou_thr: float = 0.1, max_age: int = 3, alpha: float = 0.6):
         self.high_thr = high_thr
         self.low_thr = low_thr
         self.iou_thr = iou_thr
@@ -1088,8 +1092,8 @@ class Tracker:
         self.tracks = [t for t in self.tracks if t.misses <= self.max_age]
 
         for j in um_hi:                     # 只有高分未匹配框允许出生
-            self.tracks.append(
-                Track(self._next_id, hi[j].xyxy(), hi[j].xyxy()))
+            self.tracks.append(              # hits=1：出生检测计入 hit（SORT 语义）
+                Track(self._next_id, hi[j].xyxy(), hi[j].xyxy(), hits=1))
             self._next_id += 1
         return self.tracks
 ```
@@ -1139,7 +1143,7 @@ import pytest
 
 from faceblur_lite.testmedia import build_video, load_face
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]   # tests/ 上一级=项目根（同 Task 3 修正）
 
 
 def assets_ready() -> bool:
@@ -1227,10 +1231,17 @@ from faceblur_lite.ffmpeg_io import FFmpegWriter, VideoMeta
 
 
 def load_face(path: str) -> np.ndarray:
+    """读入人脸图并裁成特写（2026-09-24 执行期修正）。
+
+    YuNet 只检出 lena 的内脸（512 图坐标约 (201,186)-(355,388)，实测）；
+    不裁的话贴图大部分是帽/肩/背景，检测框+margin 足迹只覆盖贴图约 1/3，
+    模糊覆盖率断言（std 对比窗口≈整个贴图）数学上不可满足（下限 0.877）。
+    裁成特写让 贴图≈检测框，"人脸区域方差显著下降"的断言语义才成立。
+    """
     img = cv2.imread(path)
     if img is None:
         raise FileNotFoundError(path)
-    return img
+    return img[170:400, 185:385]
 
 
 def build_video(out_path: str, face_img: np.ndarray, scenario: str = "move",
@@ -1836,6 +1847,8 @@ git commit -m "feat: 控制面契约——ControlPlane 协议 + SQLite 参考实
 `tests/test_split_merge.py`：
 
 ```python
+from pathlib import Path
+
 from conftest import requires_assets
 
 from faceblur_lite.ffmpeg_io import probe
@@ -1857,6 +1870,45 @@ def test_split_and_merge_roundtrip(move_video, tmp_path):
     out = str(tmp_path / "merged.mp4")
     merge_chunks(chunks, out)
     assert abs(probe(out).duration_s - 6.0) < 1.0
+
+
+def test_merge_relative_paths(move_video, monkeypatch, tmp_path):
+    """BUG-007 回归（2026-09-24 执行期追加）：ffmpeg concat demuxer 按列表
+    文件所在目录解析相对条目——输出目录 ≠ chunk 目录时相对条目 ENOENT，
+    merger 必须写绝对路径。"""
+    monkeypatch.chdir(tmp_path)          # 全程相对路径，复现用户 CLI 场景
+    chunks = split_video(move_video[0], "chunks", segment_s=2.0)
+    assert len(chunks) >= 2
+    Path("out").mkdir()                  # 输出父目录（编排器/CLI 职责）
+    merge_chunks(chunks, "out/merged.mp4")
+    assert abs(probe("out/merged.mp4").duration_s - 6.0) < 1.0
+
+
+def test_split_cleans_stale_chunks(move_video, tmp_path):
+    """终审修复回归（2026-09-24 修复波追加）：同 workdir 重跑不得拾取
+    上一次的残留切片（旧代码拾取残留 → 合并输出=新片+旧尾，静默错误数据）。
+
+    断言按本机实测校准：6s@10fps、gop=25 → 关键帧 0/2.5/5.0s，
+    segment 2.0s 实际新切 3 片（旧代码拾取残留后为 4）。"""
+    out_dir = tmp_path / "c"
+    out_dir.mkdir()
+    (out_dir / "chunk_005.mp4").write_bytes(b"stale")   # 上次更细切片残留
+    chunks = split_video(move_video[0], str(out_dir), segment_s=2.0)
+    assert len(chunks) == 3
+    assert not (out_dir / "chunk_005.mp4").exists()
+    merge_chunks(chunks, str(tmp_path / "m.mp4"))
+    assert abs(probe(str(tmp_path / "m.mp4")).duration_s - 6.0) < 1.0
+
+
+def test_merge_apostrophe_path(move_video, tmp_path):
+    """终审修复回归（2026-09-24 修复波追加）：路径含单引号时 concat
+    列表仍可解析（copy 与降级重编码吃同一列表，旧代码双双失败）。"""
+    odd = tmp_path / "jack's"
+    odd.mkdir()
+    chunks = split_video(move_video[0], str(odd / "c"), segment_s=2.0)
+    out = str(odd / "merged.mp4")
+    merge_chunks(chunks, out)
+    assert abs(probe(out).duration_s - 6.0) < 1.0
 ```
 
 - [ ] **Step 2: 运行确认失败**
@@ -1869,12 +1921,13 @@ Expected: FAIL（模块不存在）。
 
 - [ ] **Step 3: 最小实现**
 
-`src/faceblur_lite/splitter.py`：
+`src/faceblur_lite/splitter.py`（2026-09-24 终审修复波补：清残留 + 数字感知排序）：
 
 ```python
 """关键帧流复制切片 + 短视频快路径（数据面）。R3。"""
 from __future__ import annotations
 
+import re
 import subprocess
 from pathlib import Path
 
@@ -1883,20 +1936,27 @@ from faceblur_lite.ffmpeg_io import probe
 
 def split_video(input_path: str, out_dir: str,
                 segment_s: float = 30.0) -> list[str]:
-    """返回切片路径列表（按 idx 排序）。时长 ≤ segment_s 时快路径不切。"""
+    """返回切片路径列表（按 idx 排序）。时长 ≤ segment_s 时快路径不切。
+
+    重跑同目录先清旧 chunk（防残留混入）；数字感知排序
+    （%03d 在 1000 片后字典序乱序）。
+    """
     if probe(input_path).duration_s <= segment_s:
         return [input_path]
     Path(out_dir).mkdir(parents=True, exist_ok=True)
+    for old in Path(out_dir).glob("chunk_*.mp4"):   # 清上次残留，防混入
+        old.unlink()
     subprocess.run(
         ["ffmpeg", "-v", "error", "-y", "-i", input_path,
          "-c", "copy", "-map", "0", "-f", "segment",
          "-segment_time", str(segment_s), "-reset_timestamps", "1",
          str(Path(out_dir) / "chunk_%03d.mp4")],
         check=True)
-    return sorted(str(p) for p in Path(out_dir).glob("chunk_*.mp4"))
+    return sorted((str(p) for p in Path(out_dir).glob("chunk_*.mp4")),
+                  key=lambda p: int(re.search(r"(\d+)", Path(p).stem).group(1)))
 ```
 
-`src/faceblur_lite/merger.py`：
+`src/faceblur_lite/merger.py`（2026-09-24 终审修复波补：concat 条目撇号转义）：
 
 ```python
 """concat 流复制合并，失败降级重编码（数据面）。"""
@@ -1908,9 +1968,20 @@ from pathlib import Path
 
 def merge_chunks(chunk_paths: list[str], output_path: str) -> str:
     """所有切片由同一套钉死参数编码 → concat + -c copy 秒级合并；
-    流复制失败（参数不一致等边界）降级为重编码合并。"""
+    流复制失败（参数不一致等边界）降级为重编码合并。
+
+    concat 列表条目写绝对路径：调用方给的相对路径以调用方 cwd 为准，
+    而 ffmpeg concat demuxer 按列表文件所在目录解析相对条目（2026-09-24
+    批量冒烟发现：--outdir outputs --workdir work-smoke 相对路径下合并
+    ENOENT，视频永卡 merging）。条目内撇号按 concat 引语法转义
+    （'\'' = 闭单引号 + 反斜杠转义单引号 + 开单引号），路径含单引号
+    （如 jack's）时列表仍可解析。
+    """
     lst = Path(output_path).with_suffix(".concat.txt")
-    lst.write_text("".join(f"file '{p}'\n" for p in chunk_paths),
+    esc_apos = chr(39) + chr(92) + chr(39) + chr(39)   # '\'' 三段拼接
+    entries = (str(Path(p).resolve()).replace(chr(39), esc_apos)
+               for p in chunk_paths)
+    lst.write_text("".join(f"file '{e}'\n" for e in entries),
                    encoding="utf-8")
     base = ["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0",
             "-i", str(lst)]
@@ -1932,7 +2003,7 @@ def merge_chunks(chunk_paths: list[str], output_path: str) -> str:
 ./venv/bin/python -m pytest tests/test_split_merge.py -v
 ```
 
-Expected: `2 passed`。
+Expected: `5 passed`（fast_path/roundtrip/BUG-007 相对路径 + 2026-09-24 终审修复波 2 个回归）。
 
 - [ ] **Step 5: Commit**
 
@@ -2157,6 +2228,23 @@ def test_batch_failure_isolation(tmp_path, move_video):
     by_status = {r.input_path: r.status for r in results}
     assert by_status[move_video[0]] == "done"
     assert by_status["/nonexistent.mp4"] == "failed"
+
+
+def test_batch_same_stem_collision_isolated(move_video, tmp_path):
+    """终审修复回归（2026-09-24 修复波追加）：同 stem 输出碰撞→后者
+    显式 failed，前者正常完成（失败隔离；不静默重命名、不竞写覆盖）。"""
+    import shutil as _sh
+    d1, d2 = tmp_path / "d1", tmp_path / "d2"
+    d1.mkdir(); d2.mkdir()
+    _sh.copy(move_video[0], d1 / "a.mp4")
+    _sh.copy(move_video[0], d2 / "a.mp4")
+    res = run_batch([str(d1 / "a.mp4"), str(d2 / "a.mp4")],
+                    outdir=str(tmp_path / "o"), workdir=str(tmp_path / "w"),
+                    workers=2, segment_s=2.0)
+    by_in = {r.input_path: r for r in res}
+    assert by_in[str(d1 / "a.mp4")].status == "done"
+    assert by_in[str(d2 / "a.mp4")].status == "failed"
+    assert "碰撞" in (by_in[str(d2 / "a.mp4")].error or "")
 ```
 
 - [ ] **Step 2: 运行确认失败**
@@ -2275,6 +2363,8 @@ def _orchestrate(specs: list[tuple[str, str]], workdir: str,
     for k, (inp, outp) in enumerate(specs):
         try:
             chunk_dir = Path(workdir) / "chunks" / f"{k:02d}_{Path(inp).stem}"
+            # 快路径不切不建目录——chunk 输出目录由编排器负责（2026-09-24 执行期修正）
+            chunk_dir.mkdir(parents=True, exist_ok=True)
             files = split_video(inp, str(chunk_dir), segment_s)
             items = [(i, f, str(chunk_dir / f"blurred_{i:03d}.mp4"))
                      for i, f in enumerate(files)]
@@ -2327,10 +2417,28 @@ def run_batch(inputs: list[str], outdir: str, workdir: str,
               params: KernelParams | None = None,
               qc_sample_fps: float = 1.0,
               cp_url: str | None = None) -> list[PipelineResult]:
-    """批量：输出到 outdir/<stem>_blurred.mp4。R10。"""
-    specs = [(inp, _output_for(inp, outdir)) for inp in inputs]
+    """批量：输出到 outdir/<stem>_blurred.mp4。R10。
+
+    同 stem 输出碰撞（相机卡两目录各一张 DSC_0001 场景）：后到者显式
+    failed（复用提交期失败隔离形状），先到者正常处理，不静默重命名。"""
+    t0 = time.time()
+    specs: list[tuple[str, str]] = []
+    collisions: list[PipelineResult] = []
+    seen: dict[str, str] = {}                    # 输出路径 → 首个占用输入
+    for inp in inputs:
+        outp = _output_for(inp, outdir)
+        if outp in seen:
+            collisions.append(PipelineResult(
+                "", inp, outp, "failed", None, time.time() - t0, 0,
+                f"输出名碰撞: {inp} 与 {seen[outp]} 最终输出同为 {outp}"
+                "，后到者显式失败（先到者正常处理）"))
+        else:
+            seen[outp] = inp
+            specs.append((inp, outp))
+    if not specs:                                # 全部碰撞：无需起 Worker 池
+        return collisions
     return _orchestrate(specs, workdir, workers, segment_s,
-                        params, qc_sample_fps, cp_url)
+                        params, qc_sample_fps, cp_url) + collisions
 
 
 def run_pipeline(input_path: str, output_path: str, workdir: str,
@@ -2349,7 +2457,7 @@ def run_pipeline(input_path: str, output_path: str, workdir: str,
 ./venv/bin/python -m pytest tests/test_pipeline.py -v
 ```
 
-Expected: `4 passed`。注意 macOS 上 `mp.Process` 默认 spawn 启动方式：`worker_loop` 是模块级函数、`SqliteControlPlane` 实例只含 db_path 字符串（可 pickle）——传参安全。
+Expected: `5 passed`（既有 4 + 2026-09-24 终审修复波同 stem 碰撞回归）。注意 macOS 上 `mp.Process` 默认 spawn 启动方式：`worker_loop` 是模块级函数、`SqliteControlPlane` 实例只含 db_path 字符串（可 pickle）——传参安全。
 
 - [ ] **Step 5: 全量回归 + Commit**
 
@@ -2818,7 +2926,7 @@ time ./venv/bin/faceblur-lite pipeline outputs/a_5min.mp4 outputs/b_30s.mp4 outp
 ./venv/bin/faceblur-lite qc outputs/b_30s_blurred.mp4
 ./venv/bin/faceblur-lite qc outputs/c_90s_blurred.mp4
 
-# （可选，需 go ≥1.22）Go 控制面模式跑同一批次——业界形态：
+# （可选，需 go ≥1.25）Go 控制面模式跑同一批次——业界形态：
 # 平台控制面 Go 服务 + Python 算子 Worker，过同一份契约测试
 (cd gocp && go build -o /tmp/gocp .)
 /tmp/gocp /tmp/go_cp.db 127.0.0.1:8080 &
@@ -2844,6 +2952,290 @@ git commit -m "feat: CLI 入口 + 最小观测出口 stats + README + 详细设�
 
 ---
 
+### Task 11.5: 契约收紧——终态守卫 + attempt 记账对齐 + DDL 内联（Task 12 前置）
+
+> 2026-09-24 执行期插入。Task 7 评审累积的 4 项契约文档↔代码漂移，必须在 gocp
+> 实现前裁决——否则 Go 版照哪份实现都会和参考实现分歧。裁决方向：**代码向
+> 自己文档的状态机收敛**（done/failed 终态不可逆是 §2 状态机本义）。BUG-007
+> 冒烟已真实触发无守卫路径（merge 崩溃 → worker 对已完成 chunk 调 fail_chunk
+> → done 被翻回 pending）。同时给协议补只读 `get_chunk`：跨实现锁定守卫语义
+> 需要_chunk 级断言手段（此前只能经 claim 返回值侧视）。
+
+**Files:**
+- Modify: `src/faceblur_lite/control.py`（协议 +1 方法 get_chunk，11→12）
+- Modify: `src/faceblur_lite/state.py`（complete_chunk/fail_chunk/reclaim_expired 守卫 + attempt 对齐 + get_chunk）
+- Modify: `docs/control-plane-contract.md`（§1 DDL 内联、§2/§3/§4 语义更新）
+- Modify: `docs/design.md`（§3.4 表 +1 行 get_chunk；版本行 v1.3→v1.4）
+- Test: `tests/test_contract.py`（+5 用例，5→10）
+
+**Interfaces:**
+- Consumes: Task 7 的协议/实现/契约文档/契约测试
+- Produces: 契约 v1.1（12 方法）：`get_chunk(chunk_id) -> dict`（KeyError 不存在）；complete_chunk 仅 running 受理（迟到 ack 返回 False 不计 join）；fail_chunk 终态不受理、受理即 attempt+1（含耗尽分支）、video 仅自 processing 翻转；reclaim_expired 仅回收 video=processing 的过期 chunk。Task 12 gocp 照此实现
+
+**裁决记录（漂移项 → 目标语义）**：
+1. complete_chunk 无终态守卫 → `UPDATE ... WHERE id=? AND status='running'`，rowcount=0 即返回 False（不进入 join 计数）
+2. reclaim 不过滤 video 状态 → SELECT 加 `AND v.status='processing'`（与 claim 的 video 过滤对称；终态视频错误原因不被改写）
+3. attempt 记账不一致 → **每次受理失败 attempt+1，含耗尽分支**（reclaim 分支现状即正确；fail_chunk 耗尽分支补 +1）——终态记录最终计数，两路径对齐
+4. 文档 §1 无 DDL → 两表 DDL 逐字内联（Go 重写唯一依据自足）
+
+- [ ] **Step 1: 写失败测试（先红）**
+
+`tests/test_contract.py` **追加**：
+
+```python
+def test_complete_chunk_late_ack_rejected(cp):
+    _mk(cp, n=1)
+    t1 = cp.claim_chunk("w1", ttl_s=-1)     # 拿到即过期（模拟暴死）
+    cp.reclaim_expired()                    # 重派 → pending
+    assert cp.complete_chunk(t1["id"], {}) is False   # 迟到 ack：pending 不算数
+    t2 = cp.claim_chunk("w2", 60)
+    assert cp.complete_chunk(t2["id"], {}) is True    # 现持有者完成才认 join
+
+
+def test_fail_chunk_terminal_irreversible(cp):
+    _mk(cp, n=2)
+    t1 = cp.claim_chunk("w1", 60)
+    t2 = cp.claim_chunk("w2", 60)
+    cp.complete_chunk(t1["id"], {})
+    cp.complete_chunk(t2["id"], {})         # join 完成 → merging
+    cp.fail_chunk(t1["id"], "merge 崩了", max_attempts=3)   # BUG-007 场景
+    ch = cp.get_chunk(t1["id"])
+    assert ch["status"] == "done" and ch["attempt"] == 0   # done 不翻回
+    assert cp.video_overview()[0]["status"] == "merging"
+
+
+def test_reclaim_skips_terminal_video(cp):
+    _mk(cp, n=2)
+    cp.claim_chunk("w1", ttl_s=-1)          # 过期 running
+    t2 = cp.claim_chunk("w2", 60)
+    for _ in range(3):
+        cp.fail_chunk(t2["id"], "boom", max_attempts=3)    # video → failed
+    assert cp.reclaim_expired() == 0        # 终态视频的过期 chunk 不回收
+    assert cp.video_overview()[0]["error"] == "boom"       # 原因不被改写
+
+
+def test_fail_exhaustion_records_final_attempt(cp):
+    _mk(cp, n=1)
+    t = cp.claim_chunk("w1", 60)
+    for _ in range(3):
+        cp.fail_chunk(t["id"], "boom", max_attempts=3)
+    ch = cp.get_chunk(t["id"])
+    assert ch["status"] == "failed" and ch["attempt"] == 3  # 耗尽分支也 +1
+
+
+def test_reclaim_exhaustion_records_final_attempt(cp):
+    _mk(cp, n=1)
+    t = cp.claim_chunk("w0", ttl_s=-1)
+    for _ in range(3):
+        cp.reclaim_expired()
+        cp.claim_chunk("w", ttl_s=-1)
+    ch = cp.get_chunk(t["id"])
+    assert ch["status"] == "failed" and ch["attempt"] == 3  # 与 fail 路径对齐
+```
+
+- [ ] **Step 2: 跑红**
+
+Run: `./venv/bin/python -m pytest tests/test_contract.py -v`
+Expected: 新增 5 个全 FAIL（get_chunk 不存在 → AttributeError；守卫/记账用例在其后逐项暴露）
+
+- [ ] **Step 3: 协议 + 实现**
+
+`src/faceblur_lite/control.py` 在 `get_video` 行后**加一行**：
+
+```python
+    def get_chunk(self, chunk_id: str) -> dict: ...
+```
+
+`src/faceblur_lite/state.py`——`complete_chunk` 整体替换为：
+
+```python
+    def complete_chunk(self, chunk_id: str, metrics: dict) -> bool:
+        """置 done；若该 video 全部 done，同一事务内认领 merge。
+
+        并发下恰好一个调用者拿到 True——原子 Join（scatter-gather 门控）。
+        仅 running 态受理：迟到 ack（chunk 已被重派或终态）返回 False。
+        """
+        with _connect(self.db_path) as c:
+            c.execute("BEGIN IMMEDIATE")
+            row = c.execute("SELECT * FROM chunks WHERE id=?",
+                            (chunk_id,)).fetchone()
+            cur = c.execute(
+                "UPDATE chunks SET status='done', metrics=?, finished_at=? "
+                "WHERE id=? AND status='running'",
+                (json.dumps(metrics), time.time(), chunk_id))
+            if cur.rowcount == 0:
+                return False
+            left = c.execute(
+                "SELECT COUNT(*) FROM chunks WHERE video_id=? AND status!='done'",
+                (row["video_id"],)).fetchone()[0]
+            if left == 0:
+                cur = c.execute(
+                    "UPDATE videos SET status='merging' "
+                    "WHERE id=? AND status='processing'",
+                    (row["video_id"],))
+                return cur.rowcount == 1
+            return False
+```
+
+`fail_chunk` 整体替换为：
+
+```python
+    def fail_chunk(self, chunk_id: str, error: str,
+                   max_attempts: int = 3) -> None:
+        """终态（done/failed）不可逆：迟到 fail 不受理（BUG-007 场景——
+        merge 崩溃后对已完成 chunk 的 fail 不得把 done 翻回 pending）。
+        每次受理 attempt+1（含耗尽分支——终态记录最终计数，与 reclaim 对齐）。"""
+        with _connect(self.db_path) as c:
+            c.execute("BEGIN IMMEDIATE")
+            row = c.execute("SELECT * FROM chunks WHERE id=?",
+                            (chunk_id,)).fetchone()
+            if row is None or row["status"] in ("done", "failed"):
+                return
+            now = time.time()
+            if row["attempt"] + 1 >= max_attempts:
+                c.execute(
+                    "UPDATE chunks SET status='failed', attempt=attempt+1, "
+                    "error=?, finished_at=? WHERE id=?",
+                    (error, now, chunk_id))
+                c.execute(
+                    "UPDATE videos SET status='failed', error=?, "
+                    "finished_at=? WHERE id=? AND status='processing'",
+                    (error, now, row["video_id"]))
+            else:
+                c.execute(
+                    """UPDATE chunks SET status='pending', attempt=attempt+1,
+                       worker_id=NULL, lease_until=NULL, error=? WHERE id=?""",
+                    (error, chunk_id))
+```
+
+`reclaim_expired` 整体替换为（SELECT 换 JOIN 写法，循环体不变；耗尽分支的
+video UPDATE 加 processing 守卫）：
+
+```python
+    def reclaim_expired(self, max_attempts: int = 3) -> int:
+        """lease 过期的 running chunk → pending 重派；耗尽 → video failed。
+        仅回收 video 仍 processing 的 chunk：终态视频的失败原因不被改写。"""
+        now = time.time()
+        with _connect(self.db_path) as c:
+            c.execute("BEGIN IMMEDIATE")
+            rows = c.execute(
+                """SELECT c.* FROM chunks c JOIN videos v ON c.video_id = v.id
+                   WHERE c.status='running' AND c.lease_until < ?
+                   AND v.status='processing'""", (now,)).fetchall()
+            for r in rows:
+                if r["attempt"] + 1 >= max_attempts:
+                    c.execute(
+                        "UPDATE chunks SET status='failed', attempt=attempt+1 "
+                        "WHERE id=?", (r["id"],))
+                    c.execute(
+                        "UPDATE videos SET status='failed', "
+                        "error='lease 过期且重试耗尽', finished_at=? "
+                        "WHERE id=? AND status='processing'",
+                        (now, r["video_id"]))
+                else:
+                    c.execute(
+                        """UPDATE chunks SET status='pending',
+                           attempt=attempt+1, worker_id=NULL,
+                           lease_until=NULL WHERE id=?""", (r["id"],))
+            return len(rows)
+```
+
+`get_video` 方法后**加**：
+
+```python
+    def get_chunk(self, chunk_id: str) -> dict:
+        with _connect(self.db_path) as c:
+            row = c.execute("SELECT * FROM chunks WHERE id=?",
+                            (chunk_id,)).fetchone()
+            if row is None:
+                raise KeyError(chunk_id)
+            return dict(row)
+```
+
+- [ ] **Step 4: 契约文档同步**
+
+`docs/control-plane-contract.md`：
+
+§1 整节替换为（DDL 与 state.py 逐字一致，Go 重写唯一依据自足）：
+
+````markdown
+## 1. 存储 schema
+
+（时戳为 Unix epoch 秒，浮点；与 `state.py` 逐字一致；Go 实现建同构表）
+
+```sql
+CREATE TABLE IF NOT EXISTS videos(
+    id TEXT PRIMARY KEY,
+    input_path TEXT NOT NULL,
+    output_path TEXT NOT NULL,
+    merged_path TEXT,
+    status TEXT NOT NULL,
+    error TEXT,
+    created_at REAL NOT NULL,
+    finished_at REAL)
+```
+
+```sql
+CREATE TABLE IF NOT EXISTS chunks(
+    id TEXT PRIMARY KEY,
+    video_id TEXT NOT NULL REFERENCES videos(id),
+    idx INTEGER NOT NULL,
+    input_path TEXT NOT NULL,
+    output_path TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    attempt INTEGER NOT NULL DEFAULT 0,
+    worker_id TEXT,
+    lease_until REAL,
+    metrics TEXT,
+    enqueued_at REAL NOT NULL,
+    started_at REAL,
+    finished_at REAL,
+    error TEXT,
+    UNIQUE(video_id, idx))
+```
+````
+
+§2 末行后加：`chunks 终态（done/failed）不可逆——迟到信号不得回退。`
+
+§3 表四行改/增：
+
+```markdown
+| complete_chunk | 置 done+metrics（**仅 running 态受理**，迟到 ack 返回 False 不计 join）；若该 video 全 done → video merging | **恰好一个调用者拿到 merge 认领（原子 Join）** |
+| fail_chunk | 终态（done/failed）不受理；受理则 attempt+1（含耗尽分支）：未耗尽 → pending 重派（记 error）；耗尽 → chunk failed（记 error/finished_at）+ video failed（记 error/finished_at，仅自 processing 翻转） | attempt 单调递增；终态不可逆 |
+| reclaim_expired | running 且 lease_until 已过期且 **video=processing**：未耗尽 → pending 重派（attempt+1）；耗尽 → chunk failed（attempt+1，**不写 chunk error/finished_at**）+ video failed（error='lease 过期且重试耗尽'） | 僵尸回收（Worker 暴死）；终态视频错误原因不被改写；耗尽分支与 fail_chunk 在 chunk 字段写入上**有意不同**（失败原因记在 video 级）（2026-09-24 评审修正：原文"同 fail_chunk 语义"过度概括，gocp 照 §3 实现会在 chunk 字段上分歧） |
+| get_chunk | 读单 chunk 全字段（只读，不存在抛 KeyError） | 契约测试/观测断言 |
+```
+
+§4 末尾加一条：
+
+```markdown
+- 终态不可逆：done/failed 不因迟到信号回退（complete_chunk/fail_chunk 均带状态守卫）
+```
+
+`docs/design.md`：§3.4 契约方法表加 `get_chunk` 一行（只读，观测/断言）；
+版本行 v1.3 → v1.4（注明：契约 v1.1 终态守卫 + attempt 记账对齐 + DDL 内联）。
+
+- [ ] **Step 5: 跑绿 + 全量回归**
+
+Run: `./venv/bin/python -m pytest tests/test_contract.py -v`
+Expected: 10 passed（既有 5 + 新增 5）
+Run: `./venv/bin/python -m pytest -q`
+Expected: 38 passed（33 + 5；worker/orchestrator/stats 不受影响——正常路径
+chunk 恒 running 态完成，schema 零变更）
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/faceblur_lite/control.py src/faceblur_lite/state.py docs/control-plane-contract.md docs/design.md tests/test_contract.py
+git commit -m "feat: 契约收紧——终态守卫+attempt 记账对齐+DDL 内联（Task 12 前置）" \
+  -m "BUG-007 触发的无守卫路径收口：complete 仅 running 受理、fail 终态不可逆、
+reclaim 过滤终态视频；耗尽分支 attempt+1 与 reclaim 对齐；协议+get_chunk（11→12）。
+gocp 实现前把文档/代码/测试三方收敛到单一语义。" \
+  -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
+```
+
+---
+
 ### Task 12: gocp/ + remote.py — Go 控制面服务 + HTTP 适配（R7 业界形态）
 
 **Files:**
@@ -2851,9 +3243,9 @@ git commit -m "feat: CLI 入口 + 最小观测出口 stats + README + 详细设�
 - Modify: `tests/conftest.py`（加 go fixtures）、`tests/test_contract.py`（参数化双实现）、`docs/control-plane-contract.md`（追加 HTTP API 映射表）
 
 **Interfaces:**
-- Consumes: `ControlPlane` 协议（Task 7）、契约测试场景（Task 7）、`cp_url` 注入点（Task 10）
+- Consumes: `ControlPlane` 协议（Task 11.5 契约 v1.1，12 方法）、契约测试场景（Task 7+11.5）、`cp_url` 注入点（Task 10）
 - Produces:
-  - `gocp` 二进制：`gocp <db_path> <listen_addr>`——契约的 Go/HTTP 实现；11 个端点 ↔ 11 个协议方法，同 schema 同事务语义（`_txlock=immediate` 对应 `BEGIN IMMEDIATE`）
+  - `gocp` 二进制：`gocp <db_path> <listen_addr>`——契约的 Go/HTTP 实现；12 个端点 ↔ 12 个协议方法，同 schema 同事务语义（`_txlock=immediate` 对应 `BEGIN IMMEDIATE`；DDL 见契约 §1 内联）
   - `HttpControlPlane(base_url, timeout_s=60.0)`（`remote.py`）：`ControlPlane` 协议的 HTTP 客户端；stdlib `urllib` 零第三方依赖；实例只含 `base_url` 字符串（可 pickle，spawn 传参安全）
   - conftest：`go_bin`（session 级构建一次，无 go 工具链则 skip）、`go_cp_url`（**每测试全新服务+空库**，测试间零干扰）
   - `tests/test_contract.py` 参数化 `["sqlite", "go"]` 双跑同一场景——**契约是闸门，两种实现过同一份测试**
@@ -2874,8 +3266,8 @@ import urllib.request
 def go_bin(tmp_path_factory):
     """构建 gocp 二进制（session 只构建一次）；无 go 工具链则跳过。"""
     if shutil.which("go") is None:
-        pytest.skip("需要 go >= 1.22 工具链（brew install go）")
-    root = Path(__file__).resolve().parents[2]
+        pytest.skip("需要 go >= 1.25 工具链（brew install go；modernc.org/sqlite v1.59.0 下限，2026-09-24 终审修复波校准）")
+    root = Path(__file__).resolve().parents[1]   # tests/ 上一级=项目根（同 Task 3 修正）
     bin_path = tmp_path_factory.mktemp("gobuild") / "gocp"
     subprocess.run(["go", "build", "-o", str(bin_path), "."],
                    cwd=root / "gocp", check=True)
@@ -2904,7 +3296,7 @@ def go_cp_url(go_bin, tmp_path):
         proc.wait()
 ```
 
-`tests/test_contract.py` **替换 cp fixture**（其余 5 个测试零改动——这就是契约闸门的意义）：
+`tests/test_contract.py` **替换 cp fixture**（既有用例零改动——这就是契约闸门的意义；Task 11.5 新增 5 个守卫用例随参数化自动双跑；2026-09-24 终审修复波再补缺 id 语义用例，10→11）：
 
 ```python
 import pytest
@@ -2922,6 +3314,17 @@ def cp(request, tmp_path):
         cp_ = HttpControlPlane(request.getfixturevalue("go_cp_url"))
     cp_.init_db()
     return cp_
+```
+
+`tests/test_contract.py` **追加**（2026-09-24 终审修复波：缺失 chunk id 语义跨实现锁定，双跑）：
+
+```python
+def test_missing_chunk_id_semantics(cp):
+    _mk(cp, n=1)                                 # 正常提交，用不存在 id 打守卫路径
+    assert cp.complete_chunk("no-such-id", {}) is False
+    cp.fail_chunk("no-such-id", "x", max_attempts=3)   # 静默 no-op，不抛
+    t = cp.claim_chunk("w1", 60)
+    assert t is not None                          # 缺 id 调用不产生副作用
 ```
 
 `tests/test_go_cp.py`（新建）：
@@ -2999,6 +3402,10 @@ class HttpControlPlane:
             with urllib.request.urlopen(req, timeout=self.timeout_s) as r:
                 return json.loads(r.read().decode())
         except urllib.error.HTTPError as e:
+            # 404 = 资源不存在 → KeyError（与 SqliteControlPlane 的
+            # get_video/get_chunk 语义对齐，契约 v1.1）；其余透传 RuntimeError
+            if e.code == 404:
+                raise KeyError(path) from e
             raise RuntimeError(f"控制面 {method} {path} 失败: "
                                f"{e.code} {e.read().decode()}") from e
 
@@ -3035,6 +3442,9 @@ class HttpControlPlane:
     def get_video(self, video_id: str) -> dict:
         return self._call("GET", f"/videos/{video_id}")
 
+    def get_chunk(self, chunk_id: str) -> dict:
+        return self._call("GET", f"/chunks/{chunk_id}")
+
     def chunk_outputs(self, video_id: str) -> list[str]:
         return self._call(
             "GET", f"/videos/{video_id}/chunk_outputs")["outputs"]
@@ -3054,6 +3464,9 @@ go mod init gocp
 go get modernc.org/sqlite@latest
 go mod tidy
 ```
+
+`gocp/go.mod` 的 `go` 指令写 **1.25.0**（modernc.org/sqlite v1.59.0 的
+工具链下限，2026-09-24 终审修复波校准；更高工具链如 1.27 可正常构建）。
 
 `gocp/main.go`：
 
@@ -3101,6 +3514,8 @@ func writeJSON(w http.ResponseWriter, v any) {
 }
 
 func writeErr(w http.ResponseWriter, code int, msg string) {
+	// 头必须在 WriteHeader 之前设置——写在后面永远不生效（终审修复波）
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	writeJSON(w, map[string]string{"error": msg})
 }
@@ -3302,13 +3717,36 @@ func handleComplete(w http.ResponseWriter, r *http.Request) {
 	var videoID string
 	if err = tx.QueryRow("SELECT video_id FROM chunks WHERE id=?",
 		r.PathValue("id")).Scan(&videoID); err != nil {
-		writeErr(w, 404, "chunk 不存在")
+		// DB 错误 ≠ 不存在：仅 ErrNoRows 走守卫路径，其余 500（终审修复波）
+		if !errors.Is(err, sql.ErrNoRows) {
+			writeErr(w, 500, err.Error())
+			return
+		}
+		// 缺失 id 与参考实现对齐（Python：UPDATE rowcount==0 早退返回
+		// False，不抛 KeyError）——commit 空事务 + merge_claimed=false
+		if err = tx.Commit(); err != nil {
+			writeErr(w, 500, err.Error())
+			return
+		}
+		writeJSON(w, map[string]bool{"merge_claimed": false})
 		return
 	}
-	if _, err = tx.Exec(
+	// 契约 v1.1：仅 running 态受理——迟到 ack（已重派/终态）不算数，
+	// 不进入 join 计数（与 state.py complete_chunk 守卫逐字对应）
+	res, err := tx.Exec(
 		"UPDATE chunks SET status='done', metrics=?, finished_at=? "+
-			"WHERE id=?", string(metrics), nowF(), r.PathValue("id")); err != nil {
+			"WHERE id=? AND status='running'",
+		string(metrics), nowF(), r.PathValue("id"))
+	if err != nil {
 		writeErr(w, 500, err.Error())
+		return
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		if err = tx.Commit(); err != nil {
+			writeErr(w, 500, err.Error())
+			return
+		}
+		writeJSON(w, map[string]bool{"merge_claimed": false})
 		return
 	}
 	var left int
@@ -3352,22 +3790,53 @@ func handleFail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
-	var videoID string
+	var videoID, status string
 	var attempt int
-	if err = tx.QueryRow("SELECT video_id, attempt FROM chunks WHERE id=?",
-		r.PathValue("id")).Scan(&videoID, &attempt); err != nil {
-		writeErr(w, 404, "chunk 不存在")
+	if err = tx.QueryRow("SELECT video_id, attempt, status FROM chunks WHERE id=?",
+		r.PathValue("id")).Scan(&videoID, &attempt, &status); err != nil {
+		// DB 错误 ≠ 不存在：仅 ErrNoRows 走守卫路径，其余 500（终审修复波）
+		if !errors.Is(err, sql.ErrNoRows) {
+			writeErr(w, 500, err.Error())
+			return
+		}
+		// 缺失 id 与参考实现对齐（Python：row is None 早退静默 no-op，
+		// 不抛 KeyError）——commit 空事务 + ok=true
+		if err = tx.Commit(); err != nil {
+			writeErr(w, 500, err.Error())
+			return
+		}
+		writeJSON(w, map[string]bool{"ok": true})
 		return
 	}
-	if attempt+1 >= req.MaxAttempts { // 耗尽：chunk+video 双双 failed
-		_, _ = tx.Exec("UPDATE chunks SET status='failed', error=?, "+
-			"finished_at=? WHERE id=?", req.Error, nowF(), r.PathValue("id"))
-		_, _ = tx.Exec("UPDATE videos SET status='failed', error=?, "+
-			"finished_at=? WHERE id=?", req.Error, nowF(), videoID)
+	// 契约 v1.1：终态（done/failed）不可逆——迟到 fail 不受理（静默 ok）
+	if status == "done" || status == "failed" {
+		if err = tx.Commit(); err != nil {
+			writeErr(w, 500, err.Error())
+			return
+		}
+		writeJSON(w, map[string]bool{"ok": true})
+		return
+	}
+	if attempt+1 >= req.MaxAttempts { // 耗尽：chunk+video 双双 failed（attempt 记最终计数）
+		if _, err = tx.Exec("UPDATE chunks SET status='failed', attempt=attempt+1, "+
+			"error=?, finished_at=? WHERE id=?",
+			req.Error, nowF(), r.PathValue("id")); err != nil {
+			writeErr(w, 500, err.Error())
+			return
+		}
+		if _, err = tx.Exec("UPDATE videos SET status='failed', error=?, "+
+			"finished_at=? WHERE id=? AND status='processing'",
+			req.Error, nowF(), videoID); err != nil {
+			writeErr(w, 500, err.Error())
+			return
+		}
 	} else { // 未耗尽：回 pending 重派，attempt+1
-		_, _ = tx.Exec(`UPDATE chunks SET status='pending',
+		if _, err = tx.Exec(`UPDATE chunks SET status='pending',
 			attempt=attempt+1, worker_id=NULL, lease_until=NULL, error=?
-			WHERE id=?`, req.Error, r.PathValue("id"))
+			WHERE id=?`, req.Error, r.PathValue("id")); err != nil {
+			writeErr(w, 500, err.Error())
+			return
+		}
 	}
 	if err = tx.Commit(); err != nil {
 		writeErr(w, 500, err.Error())
@@ -3390,9 +3859,12 @@ func handleReclaim(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
+	// 契约 v1.1：仅回收 video 仍 processing 的过期 chunk（终态视频的错误
+		// 原因不被改写；与 claim 的 video 过滤对称）
 	rows, err := tx.Query(
-		"SELECT * FROM chunks WHERE status='running' AND lease_until < ?",
-		nowF())
+		`SELECT c.* FROM chunks c JOIN videos v ON c.video_id = v.id
+		 WHERE c.status='running' AND c.lease_until < ?
+		 AND v.status='processing'`, nowF())
 	if err != nil {
 		writeErr(w, 500, err.Error())
 		return
@@ -3412,18 +3884,34 @@ func handleReclaim(w http.ResponseWriter, r *http.Request) {
 		list = append(list, expired{ch["id"].(string),
 			ch["video_id"].(string), ch["attempt"].(int)})
 	}
+	if err := rows.Err(); err != nil { // 迭代中断的传输层错误 ≠ 查完（终审修复波）
+		rows.Close()
+		writeErr(w, 500, err.Error())
+		return
+	}
 	rows.Close()
 	for _, e := range list {
 		if e.attempt+1 >= req.MaxAttempts {
-			_, _ = tx.Exec("UPDATE chunks SET status='failed', "+
-				"attempt=attempt+1 WHERE id=?", e.id)
-			_, _ = tx.Exec("UPDATE videos SET status='failed', "+
-				"error='lease 过期且重试耗尽', finished_at=? WHERE id=?",
-				nowF(), e.videoID)
+			// 契约 v1.1：耗尽分支 attempt+1；chunk 不写 error/finished_at
+			// （有意与 fail_chunk 不同——失败原因记在 video 级，见契约 §3）
+			if _, err = tx.Exec("UPDATE chunks SET status='failed', "+
+				"attempt=attempt+1 WHERE id=?", e.id); err != nil {
+				writeErr(w, 500, err.Error())
+				return
+			}
+			if _, err = tx.Exec("UPDATE videos SET status='failed', "+
+				"error='lease 过期且重试耗尽', finished_at=? "+
+				"WHERE id=? AND status='processing'", nowF(), e.videoID); err != nil {
+				writeErr(w, 500, err.Error())
+				return
+			}
 		} else {
-			_, _ = tx.Exec(`UPDATE chunks SET status='pending',
+			if _, err = tx.Exec(`UPDATE chunks SET status='pending',
 				attempt=attempt+1, worker_id=NULL, lease_until=NULL
-				WHERE id=?`, e.id)
+				WHERE id=?`, e.id); err != nil {
+				writeErr(w, 500, err.Error())
+				return
+			}
 		}
 	}
 	if err = tx.Commit(); err != nil {
@@ -3470,6 +3958,24 @@ func handleGetVideo(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, v)
 }
 
+func handleGetChunk(w http.ResponseWriter, r *http.Request) {
+	// 契约 v1.1：读单 chunk 全字段（只读；不存在 404 → 客户端转 KeyError）
+	row := db.QueryRow(`SELECT id, video_id, idx, input_path, output_path,
+		status, attempt, worker_id, lease_until, metrics, enqueued_at,
+		started_at, finished_at, error FROM chunks WHERE id=?`,
+		r.PathValue("id"))
+	ch, err := scanChunk(row.Scan)
+	if errors.Is(err, sql.ErrNoRows) {
+		writeErr(w, 404, "chunk 不存在")
+		return
+	}
+	if err != nil {
+		writeErr(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, ch)
+}
+
 func handleChunkOutputs(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.Query(
 		"SELECT output_path FROM chunks WHERE video_id=? ORDER BY idx",
@@ -3487,6 +3993,10 @@ func handleChunkOutputs(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		out = append(out, p)
+	}
+	if err := rows.Err(); err != nil { // 迭代中断的传输层错误 ≠ 查完（终审修复波）
+		writeErr(w, 500, err.Error())
+		return
 	}
 	writeJSON(w, map[string]any{"outputs": out})
 }
@@ -3511,6 +4021,10 @@ func handleOverview(w http.ResponseWriter, _ *http.Request) {
 			return
 		}
 		vids = append(vids, v)
+	}
+	if err := rows.Err(); err != nil { // 迭代中断的传输层错误 ≠ 查完（终审修复波）
+		writeErr(w, 500, err.Error())
+		return
 	}
 	writeJSON(w, vids)
 }
@@ -3549,6 +4063,7 @@ func main() {
 	mux.HandleFunc("POST /videos/{id}/finish", handleFinish)
 	mux.HandleFunc("POST /maintenance/reclaim", handleReclaim)
 	mux.HandleFunc("GET /videos/{id}", handleGetVideo)
+	mux.HandleFunc("GET /chunks/{id}", handleGetChunk)
 	mux.HandleFunc("GET /videos/{id}/chunk_outputs", handleChunkOutputs)
 	mux.HandleFunc("GET /videos", handleOverview)
 	log.Printf("gocp listening on %s (db=%s)", addr, dbPath)
@@ -3572,11 +4087,19 @@ func main() {
 | finish_video | POST /videos/{id}/finish | {status} | {ok: true} |
 | reclaim_expired | POST /maintenance/reclaim | {max_attempts} | {reclaimed: int} |
 | get_video | GET /videos/{id} | — | video 对象（404 + {"error"} 不存在时） |
+| get_chunk | GET /chunks/{id} | — | chunk 对象（404 不存在时；客户端转 KeyError） |
 | chunk_outputs | GET /videos/{id}/chunk_outputs | — | {outputs: [path,…]} |
 | video_overview | GET /videos | — | [video 对象,…] |
 
 JSON 语义：键 = snake_case 列名；可空列显式 null（对应 Python
-dict[row] 的 None 语义，不缺键）；错误 = 非 2xx + {"error": msg}。
+dict[row] 的 None 语义，不缺键）；错误 = 非 2xx + {"error": msg}；
+404 → 客户端 `HttpControlPlane` 转 `KeyError`（与 SqliteControlPlane 的
+get_video/get_chunk 不存在语义对齐，契约 v1.1）。
+complete/fail 对不存在的 chunk id：与参考实现一致返回
+merge_claimed:false / ok（不抛错）；get_video/get_chunk 不存在 →
+404 → 客户端 KeyError。
+写操作守卫语义（仅 running 可 complete、终态不可 fail、reclaim 过滤终态
+video）见 §3——gocp 与 state.py 逐字对应。
 ```
 
 - [ ] **Step 5: 构建 + 契约双跑 + Go 模式 E2E**
@@ -3587,7 +4110,7 @@ dict[row] 的 None 语义，不缺键）；错误 = 非 2xx + {"error": msg}。
 ./venv/bin/python -m pytest tests/test_go_cp.py -v
 ```
 
-Expected: contract `10 passed`（无 go 工具链则 `5 passed, 5 skipped`）；go_cp `2 passed`（无 go 则 skipped）。
+Expected: contract `22 passed`（11 用例 × sqlite/go 双实现；无 go 工具链则 `11 passed, 11 skipped`）；go_cp `2 passed`（无 go 则 skipped）。（2026-09-24 终审修复波：10→11 用例，补缺 id 语义）
 
 - [ ] **Step 6: 全量回归（默认路径必须完全不受影响）**
 
@@ -3595,7 +4118,7 @@ Expected: contract `10 passed`（无 go 工具链则 `5 passed, 5 skipped`）；
 ./venv/bin/python -m pytest -v
 ```
 
-Expected: 此前所有测试全绿 + 新增 go 项全过/跳过。SQLite 内嵌路径零变化——`cp_url=None` 分支不 import remote。
+Expected: `55 passed`（Task 12 时点 50：既有 38 − 契约单跑 10 + 双跑 20 + go_cp 2；2026-09-24 终审修复波 +5：split_merge 2 + pipeline 1 + 契约缺 id 1×2；无 go 工具链则相应减 12 skipped）。SQLite 内嵌路径零变化——`cp_url=None` 分支不 import remote。
 
 - [ ] **Step 7: Commit**
 
