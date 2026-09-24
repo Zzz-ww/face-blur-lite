@@ -130,4 +130,4 @@ fail_rate: 0.0%
 
 ## 状态
 
-MVP 实现中（Task 0-11 落地）：完整并行管线 splitter→workers→merger→qc 端到端绿，32 测试通过；gocp Go 控制面（Task 12）待实施。
+MVP 完成（Task 0-12）：50 测试绿，控制面双形态（SQLite 内嵌 / gocp Go 服务）契约测试参数化双跑。

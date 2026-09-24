@@ -1,6 +1,6 @@
 # face-blur-lite 详细设计文档
 
-> 版本 v1.4 ｜ 2026-09-24（v1.4=契约 v1.1：终态守卫 + attempt 记账对齐 + DDL 内联 + get_chunk；v1.3=实现校对 + §8 验收指标回填实测值；v1.2=R11-R13 演进就绪 + 全图示 Mermaid 化） ｜ 状态：MVP Task 0-11.5 已实现（38 测试绿 + 批量冒烟通过），gocp（Task 12）待实施
+> 版本 v1.4 ｜ 2026-09-24（v1.4=契约 v1.1：终态守卫 + attempt 记账对齐 + DDL 内联 + get_chunk；v1.3=实现校对 + §8 验收指标回填实测值；v1.2=R11-R13 演进就绪 + 全图示 Mermaid 化） ｜ 状态：MVP Task 0-12 已实现（50 测试绿 + 批量冒烟通过；gocp 契约双跑 10×2=20 + Go 模式 E2E）
 >
 > 图示说明：本文全部图为 Mermaid（GitHub / VSCode 预览原生渲染），含 flowchart（架构/数据流/DAG/路线图）、stateDiagram（状态机×2）、sequenceDiagram（原子 Join / kill-9 恢复）、classDiagram（契约/数据面）。
 >
@@ -630,5 +630,5 @@ flowchart LR
 | 并行（批量摊销） | 短视频几乎免费搭车 | ✅ 一次提交一个共享池，三视频同窗口完成（51.4/55.1/55.7s），小视频以队列交错搭车 |
 | 可观测 | stats 输出分位/吞吐/失败率 | ✅ queue p50=19.3s/p95=38.2s；proc p50=10.7s/p95=12.8s；17.35 chunks/min；retried=0（数字同 README"指标输出"节） |
 | 容错 | kill -9 恢复；失败隔离 | lease 语义由契约测试锁定（`test_lease_reclaim_and_attempt`：过期→pending 重派 attempt+1，耗尽→video failed）；失败隔离由 `test_batch_failure_isolation` 覆盖；本轮冒烟未做 live kill 演示（TTL=900s 需等满租约） |
-| 契约 | `test_contract.py` 全绿 | ✅ SQLite 形态 5/5 绿；Go 参数化双跑为 Task 12 范围 |
-| 质量（单测） | 全量绿 | ✅ 32/32（tracker/blur/IO/契约/管线/qc/cli/stats；遮挡场景 E2E 含预测外推覆盖断言） |
+| 契约 | `test_contract.py` 全绿 | ✅ 10 用例 × sqlite/go 双跑 20 绿 + Go 模式管线 E2E（test_go_cp） |
+| 质量（单测） | 全量绿 | ✅ 50/50（tracker/blur/IO/契约/管线/qc/cli/stats；遮挡场景 E2E 含预测外推覆盖断言） |
