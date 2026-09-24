@@ -41,7 +41,7 @@ class Detector(Protocol):
 
 
 class YuNetDetector:
-    """opencv_zoo YuNet（约 1MB）。预处理（缩放/归一化）在检测器内部完成，
+    """opencv_zoo YuNet（实测约 230KB）。预处理（缩放/归一化）在检测器内部完成，
     输入原始 BGR uint8 帧；setInputSize 按帧分辨率设置（R4）。
     upscale>1 时内部上采样检测、框坐标映射回原图（BUG-014 检测放大：
     救 40-50px 档小脸；默认 1.0 关——推理耗时约随线性倍率平方增长）。"""
