@@ -105,6 +105,48 @@ check_collisions() {
   fi
 }
 
+# ---------- 聚合报告（spec §4：qc 统一透传 qc 子命令，shell 不解析管线 JSON） ----------
+QC_BAD=0
+
+qc_one() {  # $1=输出文件
+  local tmp rc summary sampled viol
+  if [ ! -f "$1" ]; then
+    echo "  ❌ $(basename "$1") 未生成（该视频 failed）"
+    QC_BAD=1
+    return 0
+  fi
+  tmp=$(mktemp)
+  set +e
+  "$FACEBLUR" qc "$1" >"$tmp" 2>/dev/null
+  rc=$?
+  set -e
+  summary=$("$PY" -c 'import json,sys;d=json.load(open(sys.argv[1]));print(d["sampled"],len(d["violations"]))' "$tmp")
+  sampled=${summary% *}; viol=${summary#* }
+  rm -f "$tmp"
+  if [ "$rc" -eq 0 ]; then
+    echo "  ✅ $(basename "$1") qc 通过（抽 ${sampled} 帧，0 违规）"
+  else
+    echo "  ❌ $(basename "$1") qc 违规（抽 ${sampled} 帧，${viol} 处）"
+    QC_BAD=1
+  fi
+}
+
+report_pipeline() {  # $1=workdir；INPUTS/OUTDIR 来自 cmd_run
+  echo ""
+  echo "── 批量指标 ──"
+  if [ -f "$1/pipeline.db" ]; then
+    "$FACEBLUR" stats "$1/pipeline.db" || true
+  else
+    echo "（无 pipeline.db——批前提交即失败）"
+  fi
+  echo ""
+  echo "── 输出质检 ──"
+  local p
+  for p in "${INPUTS[@]}"; do
+    qc_one "$OUTDIR/$(stem_of "$p")_blurred.mp4"
+  done
+}
+
 # ---------- run ----------
 cmd_run() {
   local OUTDIR=outputs WORKERS=2 SEGMENT=30 MODE=auto GO=""
@@ -151,17 +193,29 @@ cmd_run() {
       --workdir "$WORKDIR" --workers "$WORKERS" --segment "$SEGMENT"
     rc=$?
     set -e
+    report_pipeline "$WORKDIR"
   else
     echo "── single 模式（$n 个输入，串行）──"
     for p in "${INPUTS[@]}"; do
       out="$OUTDIR/$(stem_of "$p")_blurred.mp4"
+      local tmp info
+      tmp=$(mktemp)
       set +e
-      "$FACEBLUR" single "$p" "$out" >/dev/null 2>&1
+      "$FACEBLUR" single "$p" "$out" >"$tmp" 2>/dev/null
       rc=$?
       set -e
-      if [ "$rc" -ne 0 ]; then echo "  ❌ $p 处理失败"; break; fi
+      if [ "$rc" -eq 0 ]; then
+        info=$("$PY" -c 'import json,sys;d=json.load(open(sys.argv[1]));print("{} 帧，检测 {} 次，track {} 个，耗时 {:.1f}s".format(d["frames"],d["detections"],d["track_count"],d["wall_s"]))' "$tmp")
+        echo "  🎬 $(basename "$out")：$info"
+        qc_one "$out"
+      else
+        echo "  ❌ $p 处理失败"
+        break
+      fi
+      rm -f "$tmp"
     done
   fi
+  if [ "$QC_BAD" -ne 0 ]; then rc=1; fi
   return "$rc"
 }
 

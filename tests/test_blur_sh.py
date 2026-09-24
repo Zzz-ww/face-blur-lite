@@ -51,6 +51,22 @@ def test_run_two_videos(tmp_path, face_img):
     assert r.returncode == 0, r.stdout + r.stderr
     assert (out / "m1_blurred.mp4").exists()
     assert (out / "m2_blurred.mp4").exists()
+    assert "── 批量指标 ──" in r.stdout          # stats 已聚合
+    assert "chunks/min" in r.stdout
+    assert r.stdout.count("qc 通过") == 2        # 逐输出 qc 摘要行
+
+
+def test_single_video_report(tmp_path, face_img):
+    """1 输入 auto→single：kernel 摘要行 + qc 行都在。"""
+    from faceblur_lite.testmedia import build_video
+    v = str(tmp_path / "one.mp4")
+    build_video(v, face_img, duration_s=2.0)
+    out = tmp_path / "o"
+    r = run_blur("run", v, "--outdir", str(out))
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert (out / "one_blurred.mp4").exists()
+    assert "帧" in r.stdout and "track" in r.stdout   # kernel 摘要
+    assert "qc 通过" in r.stdout                      # qc 摘要
 
 
 def test_custom_outdir_inside_repo_gitignored(tmp_path):
