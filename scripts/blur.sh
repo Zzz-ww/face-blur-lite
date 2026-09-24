@@ -265,11 +265,88 @@ cmd_run() {
   return "$rc"
 }
 
+# ---------- demo ----------
+cmd_demo() {
+  local OUTDIR=outputs/demo WORKERS=2 GO=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --outdir)  [ $# -ge 2 ] && [ -n "$2" ] || die2 "--outdir 需要一个非空值"; OUTDIR=$2;  shift 2 ;;
+      --workers) [ $# -ge 2 ] && [ -n "$2" ] || die2 "--workers 需要一个非空值"; WORKERS=$2; shift 2 ;;
+      --go)      GO=1;       shift ;;
+      -h|--help) usage; return 0 ;;
+      --*)       die2 "未知选项：$1" ;;
+      *)         die2 "demo 不接受该参数：$1" ;;
+    esac
+  done
+
+  ensure_env
+  mkdir -p "$OUTDIR/demo_src"
+  ensure_outdir_ignored "$OUTDIR"
+
+  local total=5 t0
+  if [ -n "$GO" ]; then total=6; fi
+
+  echo "[1/$total] 合成演示视频（30s move + 30s occlude）"
+  t0=$(date +%s)
+  "$FACEBLUR" demo-video "$OUTDIR/demo_src/move.mp4" --duration 30 --scenario move >/dev/null
+  "$FACEBLUR" demo-video "$OUTDIR/demo_src/occlude.mp4" --duration 30 --scenario occlude >/dev/null
+  echo "  完成（$(( $(date +%s) - t0 ))s）"
+
+  echo "[2/$total] single 单进程处理 occlude.mp4"
+  t0=$(date +%s)
+  "$FACEBLUR" single "$OUTDIR/demo_src/occlude.mp4" \
+    "$OUTDIR/single_occlude_blurred.mp4" >/dev/null
+  echo "  耗时 $(( $(date +%s) - t0 ))s"
+
+  echo "[3/$total] pipeline 批量处理两段（共享 Worker 池 ×${WORKERS}）"
+  t0=$(date +%s)
+  set +e
+  "$FACEBLUR" pipeline "$OUTDIR/demo_src/move.mp4" "$OUTDIR/demo_src/occlude.mp4" \
+    --outdir "$OUTDIR" --workdir "$OUTDIR/work" --workers "$WORKERS" --segment 30 >/dev/null
+  set -e
+  echo "  耗时 $(( $(date +%s) - t0 ))s（对比结论看当场数字：本机单进程若已吃满 CPU，分片无净加速、收益在批量摊销）"
+
+  echo "[4/$total] 观测与质检"
+  "$FACEBLUR" stats "$OUTDIR/work/pipeline.db" || true
+  echo ""
+  qc_one "$OUTDIR/single_occlude_blurred.mp4"
+  qc_one "$OUTDIR/move_blurred.mp4"
+  qc_one "$OUTDIR/occlude_blurred.mp4"
+
+  local step=5
+  if [ -n "$GO" ]; then
+    echo "[5/6] gocp 控制面模式重跑批量（业界形态：Go 控制面 + Python Worker）"
+    t0=$(date +%s)
+    local GO_URL=""
+    start_gocp "$OUTDIR/work-go"
+    trap stop_gocp EXIT INT TERM
+    echo "[go] gocp 控制面：${GO_URL}"
+    set +e
+    "$FACEBLUR" pipeline "$OUTDIR/demo_src/move.mp4" "$OUTDIR/demo_src/occlude.mp4" \
+      --outdir "$OUTDIR/go-mode" --workdir "$OUTDIR/work-go" \
+      --workers "$WORKERS" --segment 30 --cp-url "$GO_URL" >/dev/null
+    set -e
+    "$FACEBLUR" stats "$OUTDIR/work-go/gocp.db" || true
+    stop_gocp
+    trap - EXIT INT TERM
+    echo "  耗时 $(( $(date +%s) - t0 ))s"
+    step=6
+  fi
+
+  echo "[$step/$total] 探索指引"
+  cat <<'TIP'
+  · 换真实视频：scripts/blur.sh run 你的视频.mp4（或整个目录）
+  · 容错演示：pipeline 跑批时 kill -9 一个 worker 进程，观察 lease 回收重派（docs/design.md §5）
+  · 调优：--segment 切片粒度 / --workers 并行度
+  · 深入：docs/design.md（四大视图）｜docs/platform-mapping.md（业界平台映射）
+TIP
+}
+
 main() {
   if [ $# -eq 0 ]; then usage >&2; exit 2; fi
   case "$1" in
     run)      shift; cmd_run "$@" ;;
-    demo)     die2 "demo 尚未实现（Task 4）" ;;
+    demo)     shift; cmd_demo "$@" ;;
     -h|--help) usage ;;
     *)        usage >&2; die2 "未知子命令：$1" ;;
   esac
