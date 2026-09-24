@@ -3219,7 +3219,7 @@ def go_cp_url(go_bin, tmp_path):
         proc.wait()
 ```
 
-`tests/test_contract.py` **替换 cp fixture**（其余 5 个测试零改动——这就是契约闸门的意义）：
+`tests/test_contract.py` **替换 cp fixture**（其余 10 个测试零改动——这就是契约闸门的意义；Task 11.5 新增 5 个守卫用例随参数化自动双跑）：
 
 ```python
 import pytest
@@ -3314,6 +3314,10 @@ class HttpControlPlane:
             with urllib.request.urlopen(req, timeout=self.timeout_s) as r:
                 return json.loads(r.read().decode())
         except urllib.error.HTTPError as e:
+            # 404 = 资源不存在 → KeyError（与 SqliteControlPlane 的
+            # get_video/get_chunk 语义对齐，契约 v1.1）；其余透传 RuntimeError
+            if e.code == 404:
+                raise KeyError(path) from e
             raise RuntimeError(f"控制面 {method} {path} 失败: "
                                f"{e.code} {e.read().decode()}") from e
 
@@ -3349,6 +3353,9 @@ class HttpControlPlane:
 
     def get_video(self, video_id: str) -> dict:
         return self._call("GET", f"/videos/{video_id}")
+
+    def get_chunk(self, chunk_id: str) -> dict:
+        return self._call("GET", f"/chunks/{chunk_id}")
 
     def chunk_outputs(self, video_id: str) -> list[str]:
         return self._call(
@@ -3620,10 +3627,22 @@ func handleComplete(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 404, "chunk 不存在")
 		return
 	}
-	if _, err = tx.Exec(
+	// 契约 v1.1：仅 running 态受理——迟到 ack（已重派/终态）不算数，
+	// 不进入 join 计数（与 state.py complete_chunk 守卫逐字对应）
+	res, err := tx.Exec(
 		"UPDATE chunks SET status='done', metrics=?, finished_at=? "+
-			"WHERE id=?", string(metrics), nowF(), r.PathValue("id")); err != nil {
+			"WHERE id=? AND status='running'",
+		string(metrics), nowF(), r.PathValue("id"))
+	if err != nil {
 		writeErr(w, 500, err.Error())
+		return
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		if err = tx.Commit(); err != nil {
+			writeErr(w, 500, err.Error())
+			return
+		}
+		writeJSON(w, map[string]bool{"merge_claimed": false})
 		return
 	}
 	var left int
@@ -3667,18 +3686,29 @@ func handleFail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
-	var videoID string
+	var videoID, status string
 	var attempt int
-	if err = tx.QueryRow("SELECT video_id, attempt FROM chunks WHERE id=?",
-		r.PathValue("id")).Scan(&videoID, &attempt); err != nil {
+	if err = tx.QueryRow("SELECT video_id, attempt, status FROM chunks WHERE id=?",
+		r.PathValue("id")).Scan(&videoID, &attempt, &status); err != nil {
 		writeErr(w, 404, "chunk 不存在")
 		return
 	}
-	if attempt+1 >= req.MaxAttempts { // 耗尽：chunk+video 双双 failed
-		_, _ = tx.Exec("UPDATE chunks SET status='failed', error=?, "+
-			"finished_at=? WHERE id=?", req.Error, nowF(), r.PathValue("id"))
+	// 契约 v1.1：终态（done/failed）不可逆——迟到 fail 不受理（静默 ok）
+	if status == "done" || status == "failed" {
+		if err = tx.Commit(); err != nil {
+			writeErr(w, 500, err.Error())
+			return
+		}
+		writeJSON(w, map[string]bool{"ok": true})
+		return
+	}
+	if attempt+1 >= req.MaxAttempts { // 耗尽：chunk+video 双双 failed（attempt 记最终计数）
+		_, _ = tx.Exec("UPDATE chunks SET status='failed', attempt=attempt+1, "+
+			"error=?, finished_at=? WHERE id=?",
+			req.Error, nowF(), r.PathValue("id"))
 		_, _ = tx.Exec("UPDATE videos SET status='failed', error=?, "+
-			"finished_at=? WHERE id=?", req.Error, nowF(), videoID)
+			"finished_at=? WHERE id=? AND status='processing'",
+			req.Error, nowF(), videoID)
 	} else { // 未耗尽：回 pending 重派，attempt+1
 		_, _ = tx.Exec(`UPDATE chunks SET status='pending',
 			attempt=attempt+1, worker_id=NULL, lease_until=NULL, error=?
@@ -3705,9 +3735,12 @@ func handleReclaim(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
+	// 契约 v1.1：仅回收 video 仍 processing 的过期 chunk（终态视频的错误
+		// 原因不被改写；与 claim 的 video 过滤对称）
 	rows, err := tx.Query(
-		"SELECT * FROM chunks WHERE status='running' AND lease_until < ?",
-		nowF())
+		`SELECT c.* FROM chunks c JOIN videos v ON c.video_id = v.id
+		 WHERE c.status='running' AND c.lease_until < ?
+		 AND v.status='processing'`, nowF())
 	if err != nil {
 		writeErr(w, 500, err.Error())
 		return
@@ -3730,11 +3763,13 @@ func handleReclaim(w http.ResponseWriter, r *http.Request) {
 	rows.Close()
 	for _, e := range list {
 		if e.attempt+1 >= req.MaxAttempts {
+			// 契约 v1.1：耗尽分支 attempt+1；chunk 不写 error/finished_at
+			// （有意与 fail_chunk 不同——失败原因记在 video 级，见契约 §3）
 			_, _ = tx.Exec("UPDATE chunks SET status='failed', "+
 				"attempt=attempt+1 WHERE id=?", e.id)
 			_, _ = tx.Exec("UPDATE videos SET status='failed', "+
-				"error='lease 过期且重试耗尽', finished_at=? WHERE id=?",
-				nowF(), e.videoID)
+				"error='lease 过期且重试耗尽', finished_at=? "+
+				"WHERE id=? AND status='processing'", nowF(), e.videoID)
 		} else {
 			_, _ = tx.Exec(`UPDATE chunks SET status='pending',
 				attempt=attempt+1, worker_id=NULL, lease_until=NULL
@@ -3783,6 +3818,24 @@ func handleGetVideo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, v)
+}
+
+func handleGetChunk(w http.ResponseWriter, r *http.Request) {
+	// 契约 v1.1：读单 chunk 全字段（只读；不存在 404 → 客户端转 KeyError）
+	row := db.QueryRow(`SELECT id, video_id, idx, input_path, output_path,
+		status, attempt, worker_id, lease_until, metrics, enqueued_at,
+		started_at, finished_at, error FROM chunks WHERE id=?`,
+		r.PathValue("id"))
+	ch, err := scanChunk(row.Scan)
+	if errors.Is(err, sql.ErrNoRows) {
+		writeErr(w, 404, "chunk 不存在")
+		return
+	}
+	if err != nil {
+		writeErr(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, ch)
 }
 
 func handleChunkOutputs(w http.ResponseWriter, r *http.Request) {
@@ -3864,6 +3917,7 @@ func main() {
 	mux.HandleFunc("POST /videos/{id}/finish", handleFinish)
 	mux.HandleFunc("POST /maintenance/reclaim", handleReclaim)
 	mux.HandleFunc("GET /videos/{id}", handleGetVideo)
+	mux.HandleFunc("GET /chunks/{id}", handleGetChunk)
 	mux.HandleFunc("GET /videos/{id}/chunk_outputs", handleChunkOutputs)
 	mux.HandleFunc("GET /videos", handleOverview)
 	log.Printf("gocp listening on %s (db=%s)", addr, dbPath)
@@ -3887,11 +3941,16 @@ func main() {
 | finish_video | POST /videos/{id}/finish | {status} | {ok: true} |
 | reclaim_expired | POST /maintenance/reclaim | {max_attempts} | {reclaimed: int} |
 | get_video | GET /videos/{id} | — | video 对象（404 + {"error"} 不存在时） |
+| get_chunk | GET /chunks/{id} | — | chunk 对象（404 不存在时；客户端转 KeyError） |
 | chunk_outputs | GET /videos/{id}/chunk_outputs | — | {outputs: [path,…]} |
 | video_overview | GET /videos | — | [video 对象,…] |
 
 JSON 语义：键 = snake_case 列名；可空列显式 null（对应 Python
-dict[row] 的 None 语义，不缺键）；错误 = 非 2xx + {"error": msg}。
+dict[row] 的 None 语义，不缺键）；错误 = 非 2xx + {"error": msg}；
+404 → 客户端 `HttpControlPlane` 转 `KeyError`（与 SqliteControlPlane 的
+get_video/get_chunk 不存在语义对齐，契约 v1.1）。
+写操作守卫语义（仅 running 可 complete、终态不可 fail、reclaim 过滤终态
+video）见 §3——gocp 与 state.py 逐字对应。
 ```
 
 - [ ] **Step 5: 构建 + 契约双跑 + Go 模式 E2E**
@@ -3902,7 +3961,7 @@ dict[row] 的 None 语义，不缺键）；错误 = 非 2xx + {"error": msg}。
 ./venv/bin/python -m pytest tests/test_go_cp.py -v
 ```
 
-Expected: contract `10 passed`（无 go 工具链则 `5 passed, 5 skipped`）；go_cp `2 passed`（无 go 则 skipped）。
+Expected: contract `20 passed`（10 用例 × sqlite/go 双实现；无 go 工具链则 `10 passed, 10 skipped`）；go_cp `2 passed`（无 go 则 skipped）。
 
 - [ ] **Step 6: 全量回归（默认路径必须完全不受影响）**
 
@@ -3910,7 +3969,7 @@ Expected: contract `10 passed`（无 go 工具链则 `5 passed, 5 skipped`）；
 ./venv/bin/python -m pytest -v
 ```
 
-Expected: 此前所有测试全绿 + 新增 go 项全过/跳过。SQLite 内嵌路径零变化——`cp_url=None` 分支不 import remote。
+Expected: `50 passed`（既有 38 − 契约单跑 10 + 双跑 20 + go_cp 2；无 go 工具链则 `38 passed, 12 skipped`）。SQLite 内嵌路径零变化——`cp_url=None` 分支不 import remote。
 
 - [ ] **Step 7: Commit**
 
