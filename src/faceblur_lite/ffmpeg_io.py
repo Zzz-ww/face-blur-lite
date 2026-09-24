@@ -45,15 +45,22 @@ def probe(path: str) -> VideoMeta:
 
 
 class FFmpegReader:
-    """逐帧读取。sample_fps 不为 None 时经 fps 滤镜抽帧（质检用）。"""
+    """逐帧读取。sample_fps 不为 None 时按帧号跨步抽样（质检用）：
+    步长 N=round(fps/sample_fps)，每个窗口取中点帧。抽样帧因此必然是
+    原始帧序列的逐帧成员，时间戳可精确还原（BUG-010：-vf fps 滤镜
+    在部分容器上有恒定相位偏移——实测本仓测试视频 +14 帧——且输出的
+    帧不再与原始帧一一同源，时间标签不可信）。"""
 
     def __init__(self, path: str, sample_fps: float | None = None):
         self.path = path
         self.meta = probe(path)
-        cmd = ["ffmpeg", "-v", "error", "-i", path]
-        if sample_fps is not None:
-            cmd += ["-vf", f"fps={sample_fps}"]
-        cmd += ["-f", "rawvideo", "-pix_fmt", "bgr24", "-"]
+        self.sample_stride = 1
+        self.sample_offset = 0
+        if sample_fps is not None and self.meta.fps > 0:
+            self.sample_stride = max(1, round(self.meta.fps / sample_fps))
+            self.sample_offset = self.sample_stride // 2
+        cmd = ["ffmpeg", "-v", "error", "-i", path,
+               "-f", "rawvideo", "-pix_fmt", "bgr24", "-"]
         self.proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
 
     def __enter__(self) -> "FFmpegReader":
@@ -64,12 +71,15 @@ class FFmpegReader:
 
     def __iter__(self):
         fs = self.meta.width * self.meta.height * 3
+        i = 0
         while True:
             buf = self.proc.stdout.read(fs)
             if not buf or len(buf) < fs:
                 break
-            yield np.frombuffer(buf, np.uint8).reshape(
-                self.meta.height, self.meta.width, 3)
+            if i % self.sample_stride == self.sample_offset:
+                yield np.frombuffer(buf, np.uint8).reshape(
+                    self.meta.height, self.meta.width, 3)
+            i += 1
 
     def close(self) -> None:
         if self.proc.stdout:
