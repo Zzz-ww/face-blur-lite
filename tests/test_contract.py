@@ -3,9 +3,14 @@ import pytest
 from faceblur_lite.state import SqliteControlPlane
 
 
-@pytest.fixture()
-def cp(tmp_path):
-    cp_ = SqliteControlPlane(str(tmp_path / "s.db"))
+@pytest.fixture(params=["sqlite", "go"])
+def cp(request, tmp_path):
+    if request.param == "sqlite":
+        cp_ = SqliteControlPlane(str(tmp_path / "s.db"))
+    else:
+        # getfixturevalue 惰性求值：sqlite 分支不触碰 go 工具链
+        from faceblur_lite.remote import HttpControlPlane
+        cp_ = HttpControlPlane(request.getfixturevalue("go_cp_url"))
     cp_.init_db()
     return cp_
 

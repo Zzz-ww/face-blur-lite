@@ -72,3 +72,27 @@ chunks 终态（done/failed）不可逆——迟到信号不得回退。
 - 事务内"读-判-写"（如 claim/complete_chunk）必须整体在 BEGIN IMMEDIATE
   内完成，不得拆两个事务
 - 演进：存储换 Redis 时，原子 Join 须用 Lua 脚本等价实现
+
+## 6. HTTP API 映射（gocp 实现）
+
+| 协议方法 | HTTP | 请求体 | 响应 |
+|---|---|---|---|
+| init_db | POST /init | — | {"ok": true}（schema 服务启动时已建） |
+| submit_video | POST /videos | {input_path, final_output, chunk_inputs:[[idx,in,out],…]} | {video_id} |
+| claim_chunk | POST /chunks/claim | {worker_id, ttl_s} | chunk 对象 或 null |
+| complete_chunk | POST /chunks/{id}/complete | {metrics} | {merge_claimed: bool} |
+| fail_chunk | POST /chunks/{id}/fail | {error, max_attempts} | {ok: true} |
+| complete_merge | POST /videos/{id}/merge_complete | {merged_path} | {ok: true} |
+| finish_video | POST /videos/{id}/finish | {status} | {ok: true} |
+| reclaim_expired | POST /maintenance/reclaim | {max_attempts} | {reclaimed: int} |
+| get_video | GET /videos/{id} | — | video 对象（404 + {"error"} 不存在时） |
+| get_chunk | GET /chunks/{id} | — | chunk 对象（404 不存在时；客户端转 KeyError） |
+| chunk_outputs | GET /videos/{id}/chunk_outputs | — | {outputs: [path,…]} |
+| video_overview | GET /videos | — | [video 对象,…] |
+
+JSON 语义：键 = snake_case 列名；可空列显式 null（对应 Python
+dict[row] 的 None 语义，不缺键）；错误 = 非 2xx + {"error": msg}；
+404 → 客户端 `HttpControlPlane` 转 `KeyError`（与 SqliteControlPlane 的
+get_video/get_chunk 不存在语义对齐，契约 v1.1）。
+写操作守卫语义（仅 running 可 complete、终态不可 fail、reclaim 过滤终态
+video）见 §3——gocp 与 state.py 逐字对应。
