@@ -1,6 +1,6 @@
 # face-blur-lite 详细设计文档
 
-> 版本 v1.2 ｜ 2026-09-24（R11-R13 演进就绪 + 全图示 Mermaid 化） ｜ 状态：设计定稿，待实施
+> 版本 v1.3 ｜ 2026-09-24（实现校对 + §8 验收指标回填实测值；v1.2=R11-R13 演进就绪 + 全图示 Mermaid 化） ｜ 状态：MVP Task 0-11 已实现（32 测试绿 + 批量冒烟通过），gocp（Task 12）待实施
 >
 > 图示说明：本文全部图为 Mermaid（GitHub / VSCode 预览原生渲染），含 flowchart（架构/数据流/DAG/路线图）、stateDiagram（状态机×2）、sequenceDiagram（原子 Join / kill-9 恢复）、classDiagram（契约/数据面）。
 >
@@ -197,7 +197,7 @@ flowchart TD
 #### 关键设计点
 
 1. **内存 O(1)**：全程 pipe 流式，任意长视频不整载内存（R3 地基）
-2. **编码参数全局钉死**是 concat 流复制合并的前提——"合并零成本"是这个决定的回报；音轨 `-c:a copy` 绝不重编
+2. **编码参数全局钉死**是 concat 流复制合并的前提——"合并零成本"是这个决定的回报；音轨 `-c:a copy` 绝不重编；concat 列表条目须写绝对路径（ffmpeg concat demuxer 按列表文件所在目录解析相对条目——2026-09-24 冒烟实测：相对 `--outdir/--workdir` 下合并 ENOENT、视频卡 merging，已修）
 3. **阈值分域**：内核检测阈值 det_conf=0.3 作用于**源视频信号域**；质检阈值 pass_conf=0.5 作用于**重编码后的输出域**。两者不可比较不可复用——置信度不跨有损编码域守恒（实测教训：源域 0.10 的框重编码后可涨到 0.75）
 4. **多视频批量**：N 个视频的 chunk 进同一队列、共享 Worker 池交错消费——两级并发（大视频多片并行＋多视频交错）由队列模型免费获得，Worker 零感知视频边界
 
@@ -617,12 +617,16 @@ flowchart LR
 
 ## 8. 验收标准与指标
 
+> 2026-09-24 批量冒烟实测回填（Intel i9-9880H 8C16T / ffmpeg 8.1.2 / opencv 5.0；
+> 批次 = 5min 遮挡 + 30s 移动 + 90s 遮挡，`pipeline --workers 3 --segment 30`）。
 
-| 维度 | 标准                                                                                             |
-| ------ | -------------------------------------------------------------------------------------------------- |
-| 功能 | 批量 3 视频（5min 遮挡 + 30s + 90s 遮挡）全部 done；qc 全过；音轨保留；时长一致                  |
-| 并行 | single 串行 vs pipeline 分片 wall 时间对比（加速比入 README）；批量摊销（短视频几乎免费搭车）    |
-| 容错 | kill -9 Worker 演示恢复；失败隔离测试（坏输入只废自己）                                          |
-| 契约 | `test_contract.py` 参数化双跑（SQLite/Go）全绿                                                   |
-| 可观测 | `stats` 命令输出排队/处理 P50/P95、吞吐 chunks/min、失败率、重试计数；冒烟数字回填 README |
-| 质量 | 遮挡场景 E2E（预测外推维持覆盖）；tracker/blur/IO/契约单测全绿；模型资产缺席时核心单测不依赖资产 |
+| 维度 | 标准 | 实测结果 |
+| ------ | ------ | ---------- |
+| 功能 | 批量 3 视频全部 done | ✅ 3/3 done（14 chunks 全 done，retried=0，fail_rate=0） |
+| 质量（qc） | qc 全过；时长一致 | ✅ 3/3 通过（抽帧 300/30/90，0 违规）；输出时长与输入一致（300.0/30.0/90.0s）。音轨：本轮为合成视频（无音轨），`-c:a copy` 链路带音轨断言记开放细化项 8（golden set） |
+| 并行（加速比） | single 串行 vs pipeline wall 对比 | 5min 单进程 37.9s、三视频串行合计 54.9s（37.9+5.7+11.4） vs 批量 **57.6s**——本机单进程内核已吃满 CPU（user/real≈7.7 核），进程级分片无净加速（≈5% 编排开销）；加速位在单进程线程受限场景（容器 CPU 配额/跨机 Worker 池） |
+| 并行（批量摊销） | 短视频几乎免费搭车 | ✅ 一次提交一个共享池，三视频同窗口完成（51.4/55.1/55.7s），小视频以队列交错搭车 |
+| 可观测 | stats 输出分位/吞吐/失败率 | ✅ queue p50=19.3s/p95=38.2s；proc p50=10.7s/p95=12.8s；17.35 chunks/min；retried=0（数字同 README"指标输出"节） |
+| 容错 | kill -9 恢复；失败隔离 | lease 语义由契约测试锁定（`test_lease_reclaim_and_attempt`：过期→pending 重派 attempt+1，耗尽→video failed）；失败隔离由 `test_batch_failure_isolation` 覆盖；本轮冒烟未做 live kill 演示（TTL=900s 需等满租约） |
+| 契约 | `test_contract.py` 全绿 | ✅ SQLite 形态 5/5 绿；Go 参数化双跑为 Task 12 范围 |
+| 质量（单测） | 全量绿 | ✅ 32/32（tracker/blur/IO/契约/管线/qc/cli/stats；遮挡场景 E2E 含预测外推覆盖断言） |
