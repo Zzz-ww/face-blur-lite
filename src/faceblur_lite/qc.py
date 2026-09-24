@@ -31,20 +31,23 @@ class QCReport:
         return not self.violations
 
 
-def qc_video(path: str, sample_fps: float = DEFAULT_SAMPLE_FPS,
+def qc_video(path: str, sample_fps: float | None = DEFAULT_SAMPLE_FPS,
              pass_conf: float = DEFAULT_PASS_CONF,
              model_path: str | None = None) -> QCReport:
+    """sample_fps=None → 全密度逐帧复检（最终验收用）。"""
     rep = QCReport()
     det = YuNetDetector(model_path, conf_thr=pass_conf)
     with FFmpegReader(path, sample_fps=sample_fps) as rd:
+        stride, offset, fps = rd.sample_stride, rd.sample_offset, rd.meta.fps
         for i, frame in enumerate(rd):
             rep.sampled_frames += 1
+            t = (i * stride + offset) / fps if fps > 0 else float(i)
             h, w = frame.shape[:2]
             for d in det.detect(frame):
                 area = (d.x2 - d.x1) * (d.y2 - d.y1)
                 if area < 8 * 8 or area > 0.4 * w * h:
                     continue    # 微框/巨框多为糊纹理噪声，不算违规
                 rep.violations.append(Violation(
-                    round(i / sample_fps, 2), d.conf,
+                    round(t, 2), d.conf,
                     (int(d.x1), int(d.y1), int(d.x2), int(d.y2))))
     return rep

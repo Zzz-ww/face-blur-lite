@@ -22,3 +22,17 @@ def test_qc_catches_unblurred(move_video, tmp_path):
     rep = qc_video(out)
     assert not rep.passed
     assert rep.violations and rep.violations[0].conf >= 0.5
+
+
+def test_qc_t_sec_exact_frame_timestamps(move_video, tmp_path):
+    """BUG-010：t_sec 必须是被抽中原始帧的真实时间戳。
+    10fps 视频 1fps 抽样 → 抽中帧 5,15,25,… → t 应为 0.5,1.5,2.5,…
+    （旧实现 t=i/sample_fps=整数，标签整体错位半个窗口。）"""
+    out = str(tmp_path / "leak_t.mp4")
+    process_video(move_video[0], out,
+                  KernelParams(det_every=2, det_conf=1.1))
+    rep = qc_video(out)
+    assert not rep.passed
+    for v in rep.violations:
+        frac = v.t_sec % 1.0
+        assert abs(frac - 0.5) < 0.01, v.t_sec

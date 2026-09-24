@@ -263,10 +263,11 @@ cmd_run() {
     echo "── single 模式（$n 个输入，串行）──"
     for p in "${INPUTS[@]}"; do
       out="$OUTDIR/$(stem_of "$p")_blurred.mp4"
-      local tmp info
+      local tmp err info
       tmp=$(mktemp)
+      err=$(mktemp)
       set +e
-      "$FACEBLUR" single "$p" "$out" >"$tmp" 2>/dev/null
+      "$FACEBLUR" single "$p" "$out" >"$tmp" 2>"$err"
       rc=$?
       set -e
       if [ "$rc" -eq 0 ]; then
@@ -274,10 +275,12 @@ cmd_run() {
         echo "  🎬 $(basename "$out")：$info"
         qc_one "$out"
       else
-        echo "  ❌ $p 处理失败"
+        echo "  ❌ $p 处理失败（rc=${rc}），内核输出（尾部 5 行）："
+        tail -n 5 "$err" | sed 's/^/  └─ /' >&2
+        rm -f "$tmp" "$err"
         break
       fi
-      rm -f "$tmp"
+      rm -f "$tmp" "$err"
     done
   fi
   if [ "$QC_BAD" -ne 0 ]; then rc=1; fi

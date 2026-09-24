@@ -40,3 +40,21 @@ def test_sample_fps_reader(tmp_path):
     with FFmpegReader(out, sample_fps=1.0) as rd:
         got = list(rd)
     assert len(got) == 2   # 20 帧 @10fps = 2s，1fps 抽 2 帧
+
+
+def test_sample_fps_stride_yields_midwindow_frames(tmp_path):
+    """BUG-010：抽样必须是原始帧序列的逐帧成员、取窗口中点。
+    旧实现走 -vf fps 滤镜，实测有 +14 帧恒定相位偏移（机制未明，像素级
+    MSE 定谳），且抽出的帧不再与原始帧一一同源。"""
+    meta = VideoMeta(64, 48, 10.0, "10/1")
+    out = str(tmp_path / "stride.mp4")
+    with FFmpegWriter(out, meta) as w:
+        for i in range(20):
+            w.write(np.full((48, 64, 3), (i * 10) % 255, dtype=np.uint8))
+    with FFmpegReader(out, sample_fps=1.0) as rd:
+        assert rd.sample_stride == 10
+        got = list(rd)
+    assert len(got) == 2
+    # 窗口 [0..9] 取中点 5 → 灰度 50；[10..19] 取 15 → 灰度 150
+    assert abs(float(got[0].mean()) - 50) < 6
+    assert abs(float(got[1].mean()) - 150) < 6

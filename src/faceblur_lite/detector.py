@@ -42,22 +42,31 @@ class Detector(Protocol):
 
 class YuNetDetector:
     """opencv_zoo YuNet（约 1MB）。预处理（缩放/归一化）在检测器内部完成，
-    输入原始 BGR uint8 帧；setInputSize 按帧分辨率设置（R4）。"""
+    输入原始 BGR uint8 帧；setInputSize 按帧分辨率设置（R4）。
+    upscale>1 时内部上采样检测、框坐标映射回原图（BUG-014 检测放大：
+    救 40-50px 档小脸；默认 1.0 关——推理耗时约随线性倍率平方增长）。"""
 
     def __init__(self, model_path: str | None = None, conf_thr: float = 0.3,
-                 top_k: int = 50):
+                 top_k: int = 50, upscale: float = 1.0):
         path = model_path or resolve_model_path()
+        self.upscale = upscale
         self._det = cv2.FaceDetectorYN.create(
             str(path), "", (320, 320), score_threshold=conf_thr, top_k=top_k)
 
     def detect(self, frame_bgr: np.ndarray) -> list[Det]:
-        h, w = frame_bgr.shape[:2]
+        img = frame_bgr
+        if self.upscale != 1.0:
+            img = cv2.resize(frame_bgr, None, fx=self.upscale,
+                             fy=self.upscale, interpolation=cv2.INTER_LINEAR)
+        h, w = img.shape[:2]
         self._det.setInputSize((w, h))
-        _, faces = self._det.detect(frame_bgr)
+        _, faces = self._det.detect(img)
         if faces is None:
             return []
+        s = 1.0 / self.upscale
         out = []
         for f in faces:
-            x, y, bw, bh = float(f[0]), float(f[1]), float(f[2]), float(f[3])
+            x, y, bw, bh = (float(f[0]) * s, float(f[1]) * s,
+                            float(f[2]) * s, float(f[3]) * s)
             out.append(Det(x, y, x + bw, y + bh, float(f[-1])))
         return out

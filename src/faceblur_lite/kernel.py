@@ -14,7 +14,10 @@ from faceblur_lite.tracker import Tracker
 class KernelParams:
     det_every: int = 3          # 每 N 帧检测一次，中间帧用跟踪预测补位
     det_conf: float = 0.3       # 源域检测阈值（宁可多糊）
+    det_upscale: float = 1.0    # 检测放大倍率（救 40-50px 小脸；耗时≈倍率²，默认关）
     margin: float = 0.15        # 模糊框外扩比例
+    margin_px: int = 8          # 外扩像素下限（BUG-012：小脸比例外扩仅 2-4px 盖不住框抖动）
+    blur_all_dets: bool = True  # 检测帧上检测框与 track 框取并集糊（低分不出生的也当场糊掉）
     crf: int = 20
     high_thr: float = 0.5       # 跟踪高分阈值
     low_thr: float = 0.3        # 跟踪低分阈值（二轮救活下限）
@@ -39,8 +42,10 @@ def process_video(input_path: str, output_path: str,
     rep = KernelReport()
     t0 = time.time()
     meta = probe(input_path)
-    detector = YuNetDetector(model_path, conf_thr=p.det_conf)
-    tracker = Tracker(high_thr=p.high_thr, low_thr=p.low_thr, max_age=p.max_age)
+    detector = YuNetDetector(model_path, conf_thr=p.det_conf,
+                             upscale=p.det_upscale)
+    tracker = Tracker(high_thr=p.high_thr, low_thr=p.low_thr, max_age=p.max_age,
+                      frame_wh=(meta.width, meta.height))
 
     face_frames: list[bool] = []
     rd = FFmpegReader(input_path)
@@ -48,6 +53,7 @@ def process_video(input_path: str, output_path: str,
                       audio_from=input_path if meta.has_audio else None)
     with rd, wr:
         for i, frame in enumerate(rd):
+            dets: list = []
             if i % p.det_every == 0:
                 dets = detector.detect(frame)
                 rep.detections += len(dets)
@@ -55,9 +61,14 @@ def process_video(input_path: str, output_path: str,
             else:
                 active = tracker.predict()
                 rep.predicted_frames += 1
+            # 跟踪器管帧间预测，不该在检测帧上过滤检测：低分不出生的框
+            # （源域 conf 0.3-0.5）也当场糊掉——脱敏代价不对称，宁可多糊
             boxes = [t.box for t in active]
+            if p.blur_all_dets:
+                boxes += [d.xyxy() for d in dets]
             face_frames.append(bool(boxes))
-            wr.write(blur_regions(frame, boxes, margin=p.margin))
+            wr.write(blur_regions(frame, boxes, margin=p.margin,
+                                  margin_px=p.margin_px))
 
     rep.frames = len(face_frames)
     rep.track_count = tracker.total_tracks
