@@ -43,7 +43,7 @@ def test_blur_all_dets_blurs_low_conf_no_birth(move_video, tmp_path, monkeypatch
     src, frames = move_video
     monkeypatch.setattr(
         K, "YuNetDetector",
-        lambda model_path, conf_thr: type(
+        lambda model_path=None, conf_thr=0.3, **kw: type(
             "FakeDet", (), {"detect": staticmethod(
                 lambda frame: [Det(280, 180, 380, 280, 0.35)])})())
     monkeypatch.setattr(K, "Tracker", K.Tracker)   # 真 tracker：0.35 永不出生

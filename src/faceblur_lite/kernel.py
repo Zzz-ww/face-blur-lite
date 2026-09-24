@@ -14,6 +14,7 @@ from faceblur_lite.tracker import Tracker
 class KernelParams:
     det_every: int = 3          # 每 N 帧检测一次，中间帧用跟踪预测补位
     det_conf: float = 0.3       # 源域检测阈值（宁可多糊）
+    det_upscale: float = 1.0    # 检测放大倍率（救 40-50px 小脸；耗时≈倍率²，默认关）
     margin: float = 0.15        # 模糊框外扩比例
     margin_px: int = 8          # 外扩像素下限（BUG-012：小脸比例外扩仅 2-4px 盖不住框抖动）
     blur_all_dets: bool = True  # 检测帧上检测框与 track 框取并集糊（低分不出生的也当场糊掉）
@@ -41,7 +42,8 @@ def process_video(input_path: str, output_path: str,
     rep = KernelReport()
     t0 = time.time()
     meta = probe(input_path)
-    detector = YuNetDetector(model_path, conf_thr=p.det_conf)
+    detector = YuNetDetector(model_path, conf_thr=p.det_conf,
+                             upscale=p.det_upscale)
     tracker = Tracker(high_thr=p.high_thr, low_thr=p.low_thr, max_age=p.max_age,
                       frame_wh=(meta.width, meta.height))
 
