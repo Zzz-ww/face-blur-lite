@@ -12,11 +12,16 @@ def merge_chunks(chunk_paths: list[str], output_path: str) -> str:
     concat 列表条目写绝对路径：调用方给的相对路径以调用方 cwd 为准，
     而 ffmpeg concat demuxer 按列表文件所在目录解析相对条目（2026-09-24
     批量冒烟发现：--outdir outputs --workdir work-smoke 相对路径下合并
-    ENOENT，视频永卡 merging）。
+    ENOENT，视频永卡 merging）。条目内撇号按 concat 引语法转义
+    （'\'' = 闭单引号 + 反斜杠转义单引号 + 开单引号），路径含单引号
+    （如 jack's）时列表仍可解析。
     """
     lst = Path(output_path).with_suffix(".concat.txt")
-    lst.write_text("".join(f"file '{Path(p).resolve()}'\n"
-                           for p in chunk_paths), encoding="utf-8")
+    esc_apos = chr(39) + chr(92) + chr(39) + chr(39)   # '\'' 三段拼接
+    entries = (str(Path(p).resolve()).replace(chr(39), esc_apos)
+               for p in chunk_paths)
+    lst.write_text("".join(f"file '{e}'\n" for e in entries),
+                   encoding="utf-8")
     base = ["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0",
             "-i", str(lst)]
     try:
