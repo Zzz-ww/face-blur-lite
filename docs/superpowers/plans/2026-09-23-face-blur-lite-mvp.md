@@ -2875,6 +2875,290 @@ git commit -m "feat: CLI 入口 + 最小观测出口 stats + README + 详细设�
 
 ---
 
+### Task 11.5: 契约收紧——终态守卫 + attempt 记账对齐 + DDL 内联（Task 12 前置）
+
+> 2026-09-24 执行期插入。Task 7 评审累积的 4 项契约文档↔代码漂移，必须在 gocp
+> 实现前裁决——否则 Go 版照哪份实现都会和参考实现分歧。裁决方向：**代码向
+> 自己文档的状态机收敛**（done/failed 终态不可逆是 §2 状态机本义）。BUG-007
+> 冒烟已真实触发无守卫路径（merge 崩溃 → worker 对已完成 chunk 调 fail_chunk
+> → done 被翻回 pending）。同时给协议补只读 `get_chunk`：跨实现锁定守卫语义
+> 需要_chunk 级断言手段（此前只能经 claim 返回值侧视）。
+
+**Files:**
+- Modify: `src/faceblur_lite/control.py`（协议 +1 方法 get_chunk，11→12）
+- Modify: `src/faceblur_lite/state.py`（complete_chunk/fail_chunk/reclaim_expired 守卫 + attempt 对齐 + get_chunk）
+- Modify: `docs/control-plane-contract.md`（§1 DDL 内联、§2/§3/§4 语义更新）
+- Modify: `docs/design.md`（§3.4 表 +1 行 get_chunk；版本行 v1.3→v1.4）
+- Test: `tests/test_contract.py`（+5 用例，5→10）
+
+**Interfaces:**
+- Consumes: Task 7 的协议/实现/契约文档/契约测试
+- Produces: 契约 v1.1（12 方法）：`get_chunk(chunk_id) -> dict`（KeyError 不存在）；complete_chunk 仅 running 受理（迟到 ack 返回 False 不计 join）；fail_chunk 终态不受理、受理即 attempt+1（含耗尽分支）、video 仅自 processing 翻转；reclaim_expired 仅回收 video=processing 的过期 chunk。Task 12 gocp 照此实现
+
+**裁决记录（漂移项 → 目标语义）**：
+1. complete_chunk 无终态守卫 → `UPDATE ... WHERE id=? AND status='running'`，rowcount=0 即返回 False（不进入 join 计数）
+2. reclaim 不过滤 video 状态 → SELECT 加 `AND v.status='processing'`（与 claim 的 video 过滤对称；终态视频错误原因不被改写）
+3. attempt 记账不一致 → **每次受理失败 attempt+1，含耗尽分支**（reclaim 分支现状即正确；fail_chunk 耗尽分支补 +1）——终态记录最终计数，两路径对齐
+4. 文档 §1 无 DDL → 两表 DDL 逐字内联（Go 重写唯一依据自足）
+
+- [ ] **Step 1: 写失败测试（先红）**
+
+`tests/test_contract.py` **追加**：
+
+```python
+def test_complete_chunk_late_ack_rejected(cp):
+    _mk(cp, n=1)
+    t1 = cp.claim_chunk("w1", ttl_s=-1)     # 拿到即过期（模拟暴死）
+    cp.reclaim_expired()                    # 重派 → pending
+    assert cp.complete_chunk(t1["id"], {}) is False   # 迟到 ack：pending 不算数
+    t2 = cp.claim_chunk("w2", 60)
+    assert cp.complete_chunk(t2["id"], {}) is True    # 现持有者完成才认 join
+
+
+def test_fail_chunk_terminal_irreversible(cp):
+    _mk(cp, n=2)
+    t1 = cp.claim_chunk("w1", 60)
+    t2 = cp.claim_chunk("w2", 60)
+    cp.complete_chunk(t1["id"], {})
+    cp.complete_chunk(t2["id"], {})         # join 完成 → merging
+    cp.fail_chunk(t1["id"], "merge 崩了", max_attempts=3)   # BUG-007 场景
+    ch = cp.get_chunk(t1["id"])
+    assert ch["status"] == "done" and ch["attempt"] == 0   # done 不翻回
+    assert cp.video_overview()[0]["status"] == "merging"
+
+
+def test_reclaim_skips_terminal_video(cp):
+    _mk(cp, n=2)
+    cp.claim_chunk("w1", ttl_s=-1)          # 过期 running
+    t2 = cp.claim_chunk("w2", 60)
+    for _ in range(3):
+        cp.fail_chunk(t2["id"], "boom", max_attempts=3)    # video → failed
+    assert cp.reclaim_expired() == 0        # 终态视频的过期 chunk 不回收
+    assert cp.video_overview()[0]["error"] == "boom"       # 原因不被改写
+
+
+def test_fail_exhaustion_records_final_attempt(cp):
+    _mk(cp, n=1)
+    t = cp.claim_chunk("w1", 60)
+    for _ in range(3):
+        cp.fail_chunk(t["id"], "boom", max_attempts=3)
+    ch = cp.get_chunk(t["id"])
+    assert ch["status"] == "failed" and ch["attempt"] == 3  # 耗尽分支也 +1
+
+
+def test_reclaim_exhaustion_records_final_attempt(cp):
+    _mk(cp, n=1)
+    t = cp.claim_chunk("w0", ttl_s=-1)
+    for _ in range(3):
+        cp.reclaim_expired()
+        cp.claim_chunk("w", ttl_s=-1)
+    ch = cp.get_chunk(t["id"])
+    assert ch["status"] == "failed" and ch["attempt"] == 3  # 与 fail 路径对齐
+```
+
+- [ ] **Step 2: 跑红**
+
+Run: `./venv/bin/python -m pytest tests/test_contract.py -v`
+Expected: 新增 5 个全 FAIL（get_chunk 不存在 → AttributeError；守卫/记账用例在其后逐项暴露）
+
+- [ ] **Step 3: 协议 + 实现**
+
+`src/faceblur_lite/control.py` 在 `get_video` 行后**加一行**：
+
+```python
+    def get_chunk(self, chunk_id: str) -> dict: ...
+```
+
+`src/faceblur_lite/state.py`——`complete_chunk` 整体替换为：
+
+```python
+    def complete_chunk(self, chunk_id: str, metrics: dict) -> bool:
+        """置 done；若该 video 全部 done，同一事务内认领 merge。
+
+        并发下恰好一个调用者拿到 True——原子 Join（scatter-gather 门控）。
+        仅 running 态受理：迟到 ack（chunk 已被重派或终态）返回 False。
+        """
+        with _connect(self.db_path) as c:
+            c.execute("BEGIN IMMEDIATE")
+            row = c.execute("SELECT * FROM chunks WHERE id=?",
+                            (chunk_id,)).fetchone()
+            cur = c.execute(
+                "UPDATE chunks SET status='done', metrics=?, finished_at=? "
+                "WHERE id=? AND status='running'",
+                (json.dumps(metrics), time.time(), chunk_id))
+            if cur.rowcount == 0:
+                return False
+            left = c.execute(
+                "SELECT COUNT(*) FROM chunks WHERE video_id=? AND status!='done'",
+                (row["video_id"],)).fetchone()[0]
+            if left == 0:
+                cur = c.execute(
+                    "UPDATE videos SET status='merging' "
+                    "WHERE id=? AND status='processing'",
+                    (row["video_id"],))
+                return cur.rowcount == 1
+            return False
+```
+
+`fail_chunk` 整体替换为：
+
+```python
+    def fail_chunk(self, chunk_id: str, error: str,
+                   max_attempts: int = 3) -> None:
+        """终态（done/failed）不可逆：迟到 fail 不受理（BUG-007 场景——
+        merge 崩溃后对已完成 chunk 的 fail 不得把 done 翻回 pending）。
+        每次受理 attempt+1（含耗尽分支——终态记录最终计数，与 reclaim 对齐）。"""
+        with _connect(self.db_path) as c:
+            c.execute("BEGIN IMMEDIATE")
+            row = c.execute("SELECT * FROM chunks WHERE id=?",
+                            (chunk_id,)).fetchone()
+            if row is None or row["status"] in ("done", "failed"):
+                return
+            now = time.time()
+            if row["attempt"] + 1 >= max_attempts:
+                c.execute(
+                    "UPDATE chunks SET status='failed', attempt=attempt+1, "
+                    "error=?, finished_at=? WHERE id=?",
+                    (error, now, chunk_id))
+                c.execute(
+                    "UPDATE videos SET status='failed', error=?, "
+                    "finished_at=? WHERE id=? AND status='processing'",
+                    (error, now, row["video_id"]))
+            else:
+                c.execute(
+                    """UPDATE chunks SET status='pending', attempt=attempt+1,
+                       worker_id=NULL, lease_until=NULL, error=? WHERE id=?""",
+                    (error, chunk_id))
+```
+
+`reclaim_expired` 整体替换为（SELECT 换 JOIN 写法，循环体不变；耗尽分支的
+video UPDATE 加 processing 守卫）：
+
+```python
+    def reclaim_expired(self, max_attempts: int = 3) -> int:
+        """lease 过期的 running chunk → pending 重派；耗尽 → video failed。
+        仅回收 video 仍 processing 的 chunk：终态视频的失败原因不被改写。"""
+        now = time.time()
+        with _connect(self.db_path) as c:
+            c.execute("BEGIN IMMEDIATE")
+            rows = c.execute(
+                """SELECT c.* FROM chunks c JOIN videos v ON c.video_id = v.id
+                   WHERE c.status='running' AND c.lease_until < ?
+                   AND v.status='processing'""", (now,)).fetchall()
+            for r in rows:
+                if r["attempt"] + 1 >= max_attempts:
+                    c.execute(
+                        "UPDATE chunks SET status='failed', attempt=attempt+1 "
+                        "WHERE id=?", (r["id"],))
+                    c.execute(
+                        "UPDATE videos SET status='failed', "
+                        "error='lease 过期且重试耗尽', finished_at=? "
+                        "WHERE id=? AND status='processing'",
+                        (now, r["video_id"]))
+                else:
+                    c.execute(
+                        """UPDATE chunks SET status='pending',
+                           attempt=attempt+1, worker_id=NULL,
+                           lease_until=NULL WHERE id=?""", (r["id"],))
+            return len(rows)
+```
+
+`get_video` 方法后**加**：
+
+```python
+    def get_chunk(self, chunk_id: str) -> dict:
+        with _connect(self.db_path) as c:
+            row = c.execute("SELECT * FROM chunks WHERE id=?",
+                            (chunk_id,)).fetchone()
+            if row is None:
+                raise KeyError(chunk_id)
+            return dict(row)
+```
+
+- [ ] **Step 4: 契约文档同步**
+
+`docs/control-plane-contract.md`：
+
+§1 整节替换为（DDL 与 state.py 逐字一致，Go 重写唯一依据自足）：
+
+````markdown
+## 1. 存储 schema
+
+（时戳为 Unix epoch 秒，浮点；与 `state.py` 逐字一致；Go 实现建同构表）
+
+```sql
+CREATE TABLE IF NOT EXISTS videos(
+    id TEXT PRIMARY KEY,
+    input_path TEXT NOT NULL,
+    output_path TEXT NOT NULL,
+    merged_path TEXT,
+    status TEXT NOT NULL,
+    error TEXT,
+    created_at REAL NOT NULL,
+    finished_at REAL)
+```
+
+```sql
+CREATE TABLE IF NOT EXISTS chunks(
+    id TEXT PRIMARY KEY,
+    video_id TEXT NOT NULL REFERENCES videos(id),
+    idx INTEGER NOT NULL,
+    input_path TEXT NOT NULL,
+    output_path TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    attempt INTEGER NOT NULL DEFAULT 0,
+    worker_id TEXT,
+    lease_until REAL,
+    metrics TEXT,
+    enqueued_at REAL NOT NULL,
+    started_at REAL,
+    finished_at REAL,
+    error TEXT,
+    UNIQUE(video_id, idx))
+```
+````
+
+§2 末行后加：`chunks 终态（done/failed）不可逆——迟到信号不得回退。`
+
+§3 表四行改/增：
+
+```markdown
+| complete_chunk | 置 done+metrics（**仅 running 态受理**，迟到 ack 返回 False 不计 join）；若该 video 全 done → video merging | **恰好一个调用者拿到 merge 认领（原子 Join）** |
+| fail_chunk | 终态（done/failed）不受理；受理则 attempt+1（含耗尽分支）：未耗尽 → pending 重派；耗尽 → chunk+video failed（video 仅自 processing 翻转） | attempt 单调递增；终态不可逆 |
+| reclaim_expired | running 且 lease_until 已过期且 **video=processing** → 同 fail_chunk 语义 | 僵尸回收（Worker 暴死）；终态视频错误原因不被改写 |
+| get_chunk | 读单 chunk 全字段（只读，不存在抛 KeyError） | 契约测试/观测断言 |
+```
+
+§4 末尾加一条：
+
+```markdown
+- 终态不可逆：done/failed 不因迟到信号回退（complete_chunk/fail_chunk 均带状态守卫）
+```
+
+`docs/design.md`：§3.4 契约方法表加 `get_chunk` 一行（只读，观测/断言）；
+版本行 v1.3 → v1.4（注明：契约 v1.1 终态守卫 + attempt 记账对齐 + DDL 内联）。
+
+- [ ] **Step 5: 跑绿 + 全量回归**
+
+Run: `./venv/bin/python -m pytest tests/test_contract.py -v`
+Expected: 10 passed（既有 5 + 新增 5）
+Run: `./venv/bin/python -m pytest -q`
+Expected: 38 passed（33 + 5；worker/orchestrator/stats 不受影响——正常路径
+chunk 恒 running 态完成，schema 零变更）
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/faceblur_lite/control.py src/faceblur_lite/state.py docs/control-plane-contract.md docs/design.md tests/test_contract.py
+git commit -m "feat: 契约收紧——终态守卫+attempt 记账对齐+DDL 内联（Task 12 前置）" \
+  -m "BUG-007 触发的无守卫路径收口：complete 仅 running 受理、fail 终态不可逆、
+reclaim 过滤终态视频；耗尽分支 attempt+1 与 reclaim 对齐；协议+get_chunk（11→12）。
+gocp 实现前把文档/代码/测试三方收敛到单一语义。" \
+  -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
+```
+
+---
+
 ### Task 12: gocp/ + remote.py — Go 控制面服务 + HTTP 适配（R7 业界形态）
 
 **Files:**
@@ -2882,9 +3166,9 @@ git commit -m "feat: CLI 入口 + 最小观测出口 stats + README + 详细设�
 - Modify: `tests/conftest.py`（加 go fixtures）、`tests/test_contract.py`（参数化双实现）、`docs/control-plane-contract.md`（追加 HTTP API 映射表）
 
 **Interfaces:**
-- Consumes: `ControlPlane` 协议（Task 7）、契约测试场景（Task 7）、`cp_url` 注入点（Task 10）
+- Consumes: `ControlPlane` 协议（Task 11.5 契约 v1.1，12 方法）、契约测试场景（Task 7+11.5）、`cp_url` 注入点（Task 10）
 - Produces:
-  - `gocp` 二进制：`gocp <db_path> <listen_addr>`——契约的 Go/HTTP 实现；11 个端点 ↔ 11 个协议方法，同 schema 同事务语义（`_txlock=immediate` 对应 `BEGIN IMMEDIATE`）
+  - `gocp` 二进制：`gocp <db_path> <listen_addr>`——契约的 Go/HTTP 实现；12 个端点 ↔ 12 个协议方法，同 schema 同事务语义（`_txlock=immediate` 对应 `BEGIN IMMEDIATE`；DDL 见契约 §1 内联）
   - `HttpControlPlane(base_url, timeout_s=60.0)`（`remote.py`）：`ControlPlane` 协议的 HTTP 客户端；stdlib `urllib` 零第三方依赖；实例只含 `base_url` 字符串（可 pickle，spawn 传参安全）
   - conftest：`go_bin`（session 级构建一次，无 go 工具链则 skip）、`go_cp_url`（**每测试全新服务+空库**，测试间零干扰）
   - `tests/test_contract.py` 参数化 `["sqlite", "go"]` 双跑同一场景——**契约是闸门，两种实现过同一份测试**
