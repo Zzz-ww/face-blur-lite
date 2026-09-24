@@ -10,6 +10,7 @@ SDD（subagent-driven development）执行期发现并修复的 bug，一 bug �
 | [004](004-testmedia-face-crop.md) | Task 5 | 检测框只盖贴图 1/3，std 断言数学不可满足 | 已修复 |
 | [005](005-blur-kernel-ratio.md) | Task 5 | 0.15 核只抹高频，低频对比存活 | 已修复 |
 | [006](006-orchestrator-mkdir.md) | Task 10 | 切片快路径不建目录，Worker ENOENT 耗尽重试 | 已修复 |
+| [007](007-merger-relative-paths.md) | Task 11 | concat 相对条目按列表目录解析，合并 ENOENT 卡 merging | 已修复 |
 
 环境类问题（非代码 bug）见 [env-notes.md](env-notes.md)。
 
