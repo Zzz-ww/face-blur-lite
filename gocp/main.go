@@ -41,6 +41,8 @@ func writeJSON(w http.ResponseWriter, v any) {
 }
 
 func writeErr(w http.ResponseWriter, code int, msg string) {
+	// 头必须在 WriteHeader 之前设置——写在后面永远不生效
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	writeJSON(w, map[string]string{"error": msg})
 }
@@ -242,7 +244,18 @@ func handleComplete(w http.ResponseWriter, r *http.Request) {
 	var videoID string
 	if err = tx.QueryRow("SELECT video_id FROM chunks WHERE id=?",
 		r.PathValue("id")).Scan(&videoID); err != nil {
-		writeErr(w, 404, "chunk 不存在")
+		// DB 错误 ≠ 不存在：仅 ErrNoRows 走守卫路径，其余 500
+		if !errors.Is(err, sql.ErrNoRows) {
+			writeErr(w, 500, err.Error())
+			return
+		}
+		// 缺失 id 与参考实现对齐（Python：UPDATE rowcount==0 早退返回
+		// False，不抛 KeyError）——commit 空事务 + merge_claimed=false
+		if err = tx.Commit(); err != nil {
+			writeErr(w, 500, err.Error())
+			return
+		}
+		writeJSON(w, map[string]bool{"merge_claimed": false})
 		return
 	}
 	// 契约 v1.1：仅 running 态受理——迟到 ack（已重派/终态）不算数，
@@ -308,7 +321,18 @@ func handleFail(w http.ResponseWriter, r *http.Request) {
 	var attempt int
 	if err = tx.QueryRow("SELECT video_id, attempt, status FROM chunks WHERE id=?",
 		r.PathValue("id")).Scan(&videoID, &attempt, &status); err != nil {
-		writeErr(w, 404, "chunk 不存在")
+		// DB 错误 ≠ 不存在：仅 ErrNoRows 走守卫路径，其余 500
+		if !errors.Is(err, sql.ErrNoRows) {
+			writeErr(w, 500, err.Error())
+			return
+		}
+		// 缺失 id 与参考实现对齐（Python：row is None 早退静默 no-op，
+		// 不抛 KeyError）——commit 空事务 + ok=true
+		if err = tx.Commit(); err != nil {
+			writeErr(w, 500, err.Error())
+			return
+		}
+		writeJSON(w, map[string]bool{"ok": true})
 		return
 	}
 	// 契约 v1.1：终态（done/failed）不可逆——迟到 fail 不受理（静默 ok）
@@ -321,16 +345,25 @@ func handleFail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if attempt+1 >= req.MaxAttempts { // 耗尽：chunk+video 双双 failed（attempt 记最终计数）
-		_, _ = tx.Exec("UPDATE chunks SET status='failed', attempt=attempt+1, "+
+		if _, err = tx.Exec("UPDATE chunks SET status='failed', attempt=attempt+1, "+
 			"error=?, finished_at=? WHERE id=?",
-			req.Error, nowF(), r.PathValue("id"))
-		_, _ = tx.Exec("UPDATE videos SET status='failed', error=?, "+
+			req.Error, nowF(), r.PathValue("id")); err != nil {
+			writeErr(w, 500, err.Error())
+			return
+		}
+		if _, err = tx.Exec("UPDATE videos SET status='failed', error=?, "+
 			"finished_at=? WHERE id=? AND status='processing'",
-			req.Error, nowF(), videoID)
+			req.Error, nowF(), videoID); err != nil {
+			writeErr(w, 500, err.Error())
+			return
+		}
 	} else { // 未耗尽：回 pending 重派，attempt+1
-		_, _ = tx.Exec(`UPDATE chunks SET status='pending',
+		if _, err = tx.Exec(`UPDATE chunks SET status='pending',
 			attempt=attempt+1, worker_id=NULL, lease_until=NULL, error=?
-			WHERE id=?`, req.Error, r.PathValue("id"))
+			WHERE id=?`, req.Error, r.PathValue("id")); err != nil {
+			writeErr(w, 500, err.Error())
+			return
+		}
 	}
 	if err = tx.Commit(); err != nil {
 		writeErr(w, 500, err.Error())
@@ -378,20 +411,34 @@ func handleReclaim(w http.ResponseWriter, r *http.Request) {
 		list = append(list, expired{ch["id"].(string),
 			ch["video_id"].(string), ch["attempt"].(int)})
 	}
+	if err := rows.Err(); err != nil { // 迭代中断的传输层错误 ≠ 查完
+		rows.Close()
+		writeErr(w, 500, err.Error())
+		return
+	}
 	rows.Close()
 	for _, e := range list {
 		if e.attempt+1 >= req.MaxAttempts {
 			// 契约 v1.1：耗尽分支 attempt+1；chunk 不写 error/finished_at
 			// （有意与 fail_chunk 不同——失败原因记在 video 级，见契约 §3）
-			_, _ = tx.Exec("UPDATE chunks SET status='failed', "+
-				"attempt=attempt+1 WHERE id=?", e.id)
-			_, _ = tx.Exec("UPDATE videos SET status='failed', "+
+			if _, err = tx.Exec("UPDATE chunks SET status='failed', "+
+				"attempt=attempt+1 WHERE id=?", e.id); err != nil {
+				writeErr(w, 500, err.Error())
+				return
+			}
+			if _, err = tx.Exec("UPDATE videos SET status='failed', "+
 				"error='lease 过期且重试耗尽', finished_at=? "+
-				"WHERE id=? AND status='processing'", nowF(), e.videoID)
+				"WHERE id=? AND status='processing'", nowF(), e.videoID); err != nil {
+				writeErr(w, 500, err.Error())
+				return
+			}
 		} else {
-			_, _ = tx.Exec(`UPDATE chunks SET status='pending',
+			if _, err = tx.Exec(`UPDATE chunks SET status='pending',
 				attempt=attempt+1, worker_id=NULL, lease_until=NULL
-				WHERE id=?`, e.id)
+				WHERE id=?`, e.id); err != nil {
+				writeErr(w, 500, err.Error())
+				return
+			}
 		}
 	}
 	if err = tx.Commit(); err != nil {
@@ -474,6 +521,10 @@ func handleChunkOutputs(w http.ResponseWriter, r *http.Request) {
 		}
 		out = append(out, p)
 	}
+	if err := rows.Err(); err != nil { // 迭代中断的传输层错误 ≠ 查完
+		writeErr(w, 500, err.Error())
+		return
+	}
 	writeJSON(w, map[string]any{"outputs": out})
 }
 
@@ -497,6 +548,10 @@ func handleOverview(w http.ResponseWriter, _ *http.Request) {
 			return
 		}
 		vids = append(vids, v)
+	}
+	if err := rows.Err(); err != nil { // 迭代中断的传输层错误 ≠ 查完
+		writeErr(w, 500, err.Error())
+		return
 	}
 	writeJSON(w, vids)
 }

@@ -94,5 +94,8 @@ JSON 语义：键 = snake_case 列名；可空列显式 null（对应 Python
 dict[row] 的 None 语义，不缺键）；错误 = 非 2xx + {"error": msg}；
 404 → 客户端 `HttpControlPlane` 转 `KeyError`（与 SqliteControlPlane 的
 get_video/get_chunk 不存在语义对齐，契约 v1.1）。
+complete/fail 对不存在的 chunk id：与参考实现一致返回
+merge_claimed:false / ok（不抛错）；get_video/get_chunk 不存在 →
+404 → 客户端 KeyError。
 写操作守卫语义（仅 running 可 complete、终态不可 fail、reclaim 过滤终态
 video）见 §3——gocp 与 state.py 逐字对应。

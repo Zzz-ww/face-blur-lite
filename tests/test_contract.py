@@ -113,3 +113,11 @@ def test_reclaim_exhaustion_records_final_attempt(cp):
         cp.claim_chunk("w", ttl_s=-1)
     ch = cp.get_chunk(t["id"])
     assert ch["status"] == "failed" and ch["attempt"] == 3  # 与 fail 路径对齐
+
+
+def test_missing_chunk_id_semantics(cp):
+    _mk(cp, n=1)                                 # 正常提交，用不存在 id 打守卫路径
+    assert cp.complete_chunk("no-such-id", {}) is False
+    cp.fail_chunk("no-such-id", "x", max_attempts=3)   # 静默 no-op，不抛
+    t = cp.claim_chunk("w1", 60)
+    assert t is not None                          # 缺 id 调用不产生副作用

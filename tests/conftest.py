@@ -39,7 +39,7 @@ def move_video(tmp_path_factory, face_img):
 def go_bin(tmp_path_factory):
     """构建 gocp 二进制（session 只构建一次）；无 go 工具链则跳过。"""
     if shutil.which("go") is None:
-        pytest.skip("需要 go >= 1.22 工具链（brew install go）")
+        pytest.skip("需要 go >= 1.25 工具链（brew install go）")
     root = Path(__file__).resolve().parents[1]   # tests/ 上一级=项目根（同 Task 3 修正）
     bin_path = tmp_path_factory.mktemp("gobuild") / "gocp"
     subprocess.run(["go", "build", "-o", str(bin_path), "."],
