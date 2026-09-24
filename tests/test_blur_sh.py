@@ -1,12 +1,18 @@
+import shutil
 import subprocess
 from pathlib import Path
 
-from conftest import face_img, requires_assets
+import pytest
+
+from conftest import face_img, move_video, requires_assets
 
 ROOT = Path(__file__).resolve().parents[1]
 BLUR_SH = ROOT / "scripts" / "blur.sh"
 
 pytestmark = requires_assets
+
+needs_go = pytest.mark.skipif(
+    shutil.which("go") is None, reason="需要 go 工具链（brew install go）")
 
 
 def run_blur(*args, timeout=300):
@@ -99,3 +105,22 @@ def test_option_missing_value_exit_2(tmp_path):
 def test_option_empty_value_exit_2(tmp_path):
     r = run_blur("run", str(tmp_path / "nope.mp4"), "--outdir", "")
     assert r.returncode == 2
+
+
+@needs_go
+def test_go_mode_pipeline(tmp_path, move_video):
+    """--go 单输入也隐含 pipeline：gocp 构建/起服/跑批/清理全链路。"""
+    out = tmp_path / "out"
+    r = run_blur("run", move_video[0], "--outdir", str(out),
+                 "--go", "--segment", "2")
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert (out / "move_blurred.mp4").exists()
+    assert "gocp" in r.stdout
+
+
+def test_go_with_single_mode_conflict(move_video, tmp_path):
+    """--go 与 --mode single 矛盾 → exit 2（无需 go 工具链即可测）。"""
+    r = run_blur("run", move_video[0], "--outdir", str(tmp_path / "o"),
+                 "--go", "--mode", "single")
+    assert r.returncode == 2
+    assert "矛盾" in r.stderr

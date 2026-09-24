@@ -147,6 +147,39 @@ report_pipeline() {  # $1=workdir；INPUTS/OUTDIR 来自 cmd_run
   done
 }
 
+# ---------- gocp（spec §5） ----------
+GOCP_PID=""
+
+stop_gocp() {
+  if [ -n "$GOCP_PID" ]; then
+    kill "$GOCP_PID" 2>/dev/null || true
+    GOCP_PID=""
+  fi
+}
+
+start_gocp() {  # $1=workdir；就绪后设置全局 GO_URL（勿用 $() 调用——子 shell 会丢 GOCP_PID 且 die2 只退出子 shell）
+  command -v go >/dev/null 2>&1 || die2 "--go 需要 go 工具链（≥1.25）：brew install go"
+  local bin=/tmp/gocp-blur-sh
+  if [ ! -x "$bin" ] || [ gocp/main.go -nt "$bin" ] || [ gocp/go.mod -nt "$bin" ]; then
+    echo "[go] 构建 gocp..." >&2
+    (cd gocp && go build -o "$bin" .)
+  fi
+  mkdir -p "$1"
+  local port i
+  port=$("$PY" -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print(s.getsockname()[1]);s.close()')
+  "$bin" "$1/gocp.db" "127.0.0.1:$port" >/dev/null 2>&1 &
+  GOCP_PID=$!
+  for i in $(seq 1 50); do
+    if "$PY" -c "import urllib.request;urllib.request.urlopen('http://127.0.0.1:$port/videos',timeout=0.2)" 2>/dev/null; then
+      GO_URL="http://127.0.0.1:$port"
+      return 0
+    fi
+    sleep 0.1
+  done
+  stop_gocp
+  die2 "gocp 启动超时"
+}
+
 # ---------- run ----------
 cmd_run() {
   local OUTDIR=outputs WORKERS=2 SEGMENT=30 MODE=auto GO=""
@@ -171,7 +204,6 @@ cmd_run() {
   if [ -n "$GO" ] && [ "$MODE" = "single" ]; then
     die2 "--go 与 --mode single 矛盾（--go 隐含 pipeline）"
   fi
-  if [ -n "$GO" ]; then die2 "--go 尚未实现（Task 3）"; fi
 
   ensure_env
   mkdir -p "$OUTDIR"
@@ -181,19 +213,33 @@ cmd_run() {
 
   local WORKDIR="$OUTDIR/work" rc=0 n=${#INPUTS[@]} eng=$MODE p out
   if [ "$eng" = "auto" ]; then
-    if [ "$n" -ge 2 ]; then eng=pipeline; else eng=single; fi
+    if [ -n "$GO" ] || [ "$n" -ge 2 ]; then eng=pipeline; else eng=single; fi
   fi
   if [ "$eng" = "single" ] && { [ -n "$W_SET" ] || [ -n "$S_SET" ]; }; then
     echo "提示：single 模式忽略 --workers/--segment"
   fi
 
   if [ "$eng" = "pipeline" ]; then
+    local GO_URL=""
+    if [ -n "$GO" ]; then
+      start_gocp "$WORKDIR"
+      trap stop_gocp EXIT INT TERM
+      echo "[go] gocp 控制面：${GO_URL}"
+    fi
     set +e
-    "$FACEBLUR" pipeline "${INPUTS[@]}" --outdir "$OUTDIR" \
-      --workdir "$WORKDIR" --workers "$WORKERS" --segment "$SEGMENT"
+    if [ -n "$GO_URL" ]; then
+      "$FACEBLUR" pipeline "${INPUTS[@]}" --outdir "$OUTDIR" \
+        --workdir "$WORKDIR" --workers "$WORKERS" --segment "$SEGMENT" \
+        --cp-url "$GO_URL"
+    else
+      "$FACEBLUR" pipeline "${INPUTS[@]}" --outdir "$OUTDIR" \
+        --workdir "$WORKDIR" --workers "$WORKERS" --segment "$SEGMENT"
+    fi
     rc=$?
     set -e
     report_pipeline "$WORKDIR"
+    stop_gocp
+    trap - EXIT INT TERM
   else
     echo "── single 模式（$n 个输入，串行）──"
     for p in "${INPUTS[@]}"; do
