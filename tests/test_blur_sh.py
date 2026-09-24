@@ -80,6 +80,18 @@ def test_single_video_report(tmp_path, face_img):
     assert "qc 通过" in r.stdout                      # qc 摘要
 
 
+def test_single_mode_failure_surfaces_engine_error(tmp_path):
+    """BUG-009 教训：single 分支曾把内核 stderr 丢进 /dev/null，失败时用户
+    只见一行"处理失败"。坏视频必须把内核报错尾部透传出来。"""
+    bad = tmp_path / "bad.mp4"
+    bad.write_bytes(b"definitely not an mp4")
+    r = run_blur("run", str(bad), "--outdir", str(tmp_path / "o"))
+    assert r.returncode == 1
+    assert "处理失败" in r.stdout
+    assert "└─" in r.stderr                       # 内核输出尾部已透传
+    assert len(r.stderr.strip()) > len("└─")      # 且不止标题行，有真内容
+
+
 def test_custom_outdir_inside_repo_gitignored(tmp_path):
     """spec §4 输出隔离：仓库内未忽略的 outdir 被自动追加 .gitignore；
     隔离先于输入校验（坏输入也触发追加后 exit 2）。"""
