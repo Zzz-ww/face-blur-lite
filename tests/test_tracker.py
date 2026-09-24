@@ -56,6 +56,28 @@ def test_unmatched_high_conf_births_new_track():
     assert len(tr.tracks) == 2
 
 
+def test_fast_motion_distance_pass_keeps_track():
+    """快运动（1 框宽/检测轮）：IoU≈0.05 失配，距离兜底必须接住同一
+    track，且速度自举（头几轮直采瞬时速度）让预测跟得上。真实视频
+    （BUG-011）：~10px/帧的小人脸曾导致每轮重生、预测框永远滞后。"""
+    tr = Tracker()
+    tr.update([d(100, 100, s=33)], gap=3)
+    tr.predict(); tr.predict()
+    tr.update([d(130, 100, s=33)], gap=3)    # 30px 位移 = 1 框宽
+    assert tr.total_tracks == 1              # 旧实现：失配重生 → 2
+    assert abs(tr.tracks[0].box[0] - 130) < 1
+    assert abs(tr.tracks[0].vel[0] - 10.0) < 1e-6   # (130-100)/3，直采
+
+
+def test_distance_pass_rejects_scale_mismatch():
+    """距离兜底须过尺度守门（0.5–2×），否则大框会错并到邻近小脸上。"""
+    tr = Tracker()
+    tr.update([d(100, 100, s=60)], gap=3)
+    tr.predict(); tr.predict()
+    tr.update([d(150, 100, s=20)], gap=3)    # 中心距 30 ≤ 60，但面积 9×
+    assert tr.total_tracks == 2              # 尺度不符 → 不并 → 新生
+
+
 def test_predict_prunes_fully_outside_tracks():
     """BUG-009：注入 frame_wh 时，完全出画的 track 在 predict 后剪掉
     （人脸已离画，无脱敏价值，segments 也不再虚假延长）。"""

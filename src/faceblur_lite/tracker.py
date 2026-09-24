@@ -99,11 +99,41 @@ class Tracker:
                 [d.xyxy() for d in lo], self.iou_thr)
             pairs += [(um_t[a], len(hi) + b) for a, b in p2]
             um_t = [um_t[i] for i in um_sub]
+        if um_t and um_hi:                  # 三轮：快运动距离兜底（BUG-011）
+            # IoU 对"1 框宽/检测轮"的位移必然失配（33px 框移 30px → IoU≈0.05），
+            # track 每轮重生、速度永远无从自举。中心距 ≤ max(宽,高) 且面积
+            # 相近（0.5–2×）的失配对按距离贪心配对；宁并勿重生——错并只是
+            # track 提前挪位，重生则让预测框永久滞后（脱敏宁可多糊）。
+            cand = []
+            for ti in um_t:
+                t = self.tracks[ti]
+                tw, th = t.box[2] - t.box[0], t.box[3] - t.box[1]
+                reach = max(tw, th)
+                for j in um_hi:
+                    d = hi[j]
+                    dw, dh = d.x2 - d.x1, d.y2 - d.y1
+                    scale = (tw * th) / max(dw * dh, 1e-9)
+                    cdx = (t.box[0] + t.box[2] - d.x1 - d.x2) / 2
+                    cdy = (t.box[1] + t.box[3] - d.y1 - d.y2) / 2
+                    if abs(cdx) <= reach and abs(cdy) <= reach \
+                            and 0.5 <= scale <= 2.0:
+                        cand.append((cdx * cdx + cdy * cdy, ti, j))
+            used_t, used_j = set(), set()
+            for _, ti, j in sorted(cand):
+                if ti in used_t or j in used_j:
+                    continue
+                pairs.append((ti, j))
+                used_t.add(ti)
+                used_j.add(j)
+            um_t = [i for i in um_t if i not in used_t]
+            um_hi = [j for j in um_hi if j not in used_j]
 
         for ti, dj in pairs:
             t, d = self.tracks[ti], pool[dj]
             inst_v = (d.xyxy() - t.last_box) / max(1, gap)
-            t.vel = (inst_v if t.hits == 0
+            # 速度自举：头几轮直接采纳瞬时速度，EMA 从第 3 次命中起——
+            # 新生 vel=0 走 EMA 会以 0.4 系数爬坡，快运动下预测长期滞后
+            t.vel = (inst_v if t.hits <= 2
                      else self.alpha * t.vel + (1 - self.alpha) * inst_v)
             t.box = t.last_box = d.xyxy()
             t.hits += 1
