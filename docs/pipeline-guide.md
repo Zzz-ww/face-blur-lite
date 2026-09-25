@@ -510,5 +510,6 @@ real_video.MP4
 | 一条命令跑起来 | [README](../README.md) 快速开始 |
 | 每层数据格式与机理（本文） | docs/pipeline-guide.md |
 | 架构决策、四大视图、ADR、容错矩阵 | [design.md](design.md) |
-| 为什么长成这样：逐 bug 根因 | [bugs/](bugs/)（001–014） |
+| 为什么长成这样：逐 bug 根因 | [bugs/](bugs/)（001–015） |
 | 业界平台映射（百舸/火山 LAS/胜算） | [platform-mapping.md](platform-mapping.md) |
+| 业内对标锐评与迭代 backlog | [industry-benchmark.md](industry-benchmark.md) |
