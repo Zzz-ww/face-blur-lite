@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # blur.sh —— face-blur-lite 本地运行脚本（薄委托层）
 # spec：docs/superpowers/specs/2026-09-24-blur-sh-design.md
-# 退出码：0=全 done 且 qc 全过；1=存在 failed/qc_failed；2=环境/输入/参数错误
+# 退出码：0=全 done 且 qc 全过；1=仅边缘违规或存在 failed/qc_failed；3=qc 含致命违规；2=环境/输入/参数错误（优先级 2>3>1）
 set -euo pipefail
 REPO=$(cd "$(dirname "$0")/.." && pwd -P)
 cd "$REPO"
@@ -128,36 +128,48 @@ check_collisions() {
 }
 
 # ---------- 聚合报告（spec §4：qc 统一透传 qc 子命令，shell 不解析管线 JSON） ----------
-QC_BAD=0
+QC_BAD=0 QC_FATAL=0 QC_MARGINAL=0
 
 qc_one() {  # $1=输出文件
-  local tmp rc summary sampled viol qd
-  if [ ! -f "$1" ]; then
-    echo "  ❌ $(basename "$1") 未生成（该视频 failed）"
+  local f="$1" tmp rc summary sampled viol fatal qd base stem ext tgt n
+  if [ ! -f "$f" ]; then
+    echo "  ❌ $(basename "$f") 未生成（该视频 failed）"
     QC_BAD=1
     return 0
   fi
   tmp=$(mktemp)
   set +e
-  "$FACEBLUR" qc "$1" >"$tmp" 2>/dev/null
+  "$FACEBLUR" qc "$f" >"$tmp" 2>/dev/null
   rc=$?
   set -e
-  summary=$("$PY" -c 'import json,sys;d=json.load(open(sys.argv[1]));print(d["sampled"],len(d["violations"]))' "$tmp")
-  sampled=${summary% *}; viol=${summary#* }
+  summary=$("$PY" -c 'import json,sys;d=json.load(open(sys.argv[1]));print(d["sampled"],len(d["violations"]),d.get("fatal",0))' "$tmp")
+  # 注意：set -- 会改写本函数位置参数 $1——文件路径须先存入 f（brief 勘误）
+  set -- $summary
+  sampled=$1; viol=$2; fatal=$3
   rm -f "$tmp"
   if [ "$rc" -eq 0 ]; then
-    echo "  ✅ $(basename "$1") qc 通过（抽 ${sampled} 帧，0 违规）"
+    echo "  ✅ $(basename "$f") qc 通过（抽 ${sampled} 帧，0 违规）"
   else
-    echo "  ❌ $(basename "$1") qc 违规（抽 ${sampled} 帧，${viol} 处）"
+    echo "  ❌ $(basename "$f") qc 违规（抽 ${sampled} 帧，${viol} 处：致命 ${fatal} · 边缘 $((viol - fatal))）"
     QC_BAD=1
+    if [ "$fatal" -gt 0 ]; then QC_FATAL=1; else QC_MARGINAL=1; fi
     # qc_failed 隔离（spec 2026-09-25）：通过层不留未验收件。basename 守卫——
     # 文件已在 qc_failed/ 内（report_pipeline 二次质检复用本函数）则不重复移；
-    # 隔离目录从 $1 自身 dirname 派生，对 OUTDIR 尾斜杠/相对绝对路径免疫。
-    if [ "$(basename "$(dirname "$1")")" != "qc_failed" ]; then
-      qd="$(dirname "$1")/qc_failed"
+    # 隔离目录从 $f 自身 dirname 派生，对 OUTDIR 尾斜杠/相对绝对路径免疫。
+    # 同名已存在 → _1/_2… 递增（顺手件 4：保住上一轮复核证据，防 mv 静默
+    # 覆盖）；mv 失败仅警告不砸收尾（顺手件 3：与 Python 侧"隔离失败不砸
+    # 批次、缺陷可见"对齐——set -e 下 if 条件位的失败不触发退出）。
+    if [ "$(basename "$(dirname "$f")")" != "qc_failed" ]; then
+      qd="$(dirname "$f")/qc_failed"
       mkdir -p "$qd"
-      mv "$1" "$qd/"
-      echo "  ↳ 已隔离：qc_failed/$(basename "$1")（复核后人工移出=转正）"
+      base=$(basename "$f"); stem=${base%.*}; ext=${base##*.}
+      tgt="$qd/$base"; n=1
+      while [ -e "$tgt" ]; do tgt="$qd/${stem}_${n}.${ext}"; n=$((n+1)); done
+      if mv "$f" "$tgt"; then
+        echo "  ↳ 已隔离：qc_failed/$(basename "$tgt")（复核后人工移出=转正）"
+      else
+        echo "  ⚠ 隔离失败（mv 报错），文件留原位——批次继续" >&2
+      fi
     fi
   fi
 }
@@ -327,8 +339,11 @@ cmd_run() {
       rm -f "$tmp" "$err"
     done
   fi
-  # rc 2（输入/环境错误类）不被 QC_BAD 改写成 1——错误类别优先于失败计数
-  if [ "$QC_BAD" -ne 0 ] && [ "$rc" -ne 2 ]; then rc=1; fi
+  # rc 优先级链（2026-09-25 分级）：2=环境/输入错误 > 3=qc 含致命 > 1=仅边缘/failed
+  if [ "$rc" -eq 2 ]; then :
+  elif [ "$QC_FATAL" -ne 0 ] || [ "$rc" -eq 3 ]; then rc=3
+  elif [ "$QC_BAD" -ne 0 ]; then rc=1
+  fi
   return "$rc"
 }
 
