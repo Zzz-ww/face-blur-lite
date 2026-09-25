@@ -78,3 +78,37 @@ def test_batch_same_stem_collision_isolated(move_video, tmp_path):
     assert by_in[str(d1 / "a.mp4")].status == "done"
     assert by_in[str(d2 / "a.mp4")].status == "failed"
     assert "碰撞" in (by_in[str(d2 / "a.mp4")].error or "")
+
+
+def test_pipeline_progress_console_and_log(tmp_path, capsys, move_video):
+    """进度双出口：stderr 粗粒度行 + workdir/pipeline.log 全量事件。"""
+    out = str(tmp_path / "prog.mp4")
+    res = run_pipeline(move_video[0], out, str(tmp_path / "wd"),
+                       workers=2, segment_s=2.0,
+                       params=KernelParams(det_every=2))
+    assert res.status == "done"
+    err = capsys.readouterr().err
+    assert "[pipeline +0s] 提交 1 视频 → " in err
+    assert "qc " in err
+    assert "收尾：1 done · 0 qc_failed · 0 failed" in err
+    log = (tmp_path / "wd" / "pipeline.log").read_text(encoding="utf-8")
+    assert log.startswith("=== run start ===")
+    assert "run_start inputs=1" in log
+    assert "video_submit video=" in log
+    assert log.count("chunk_done video=") == res.chunk_count
+    assert "qc_result video=" in log
+    assert "run_end done=1 qc_failed=0 failed=0" in log
+    assert log.rstrip().endswith("=== run end ===")
+
+
+def test_pipeline_log_appends_across_runs(tmp_path, move_video):
+    """追加语义 + 快照按本轮 video_id 过滤（复用 workdir 不吃旧行）。"""
+    wd = str(tmp_path / "wd")
+    r1 = run_pipeline(move_video[0], str(tmp_path / "a.mp4"), wd,
+                      workers=1, segment_s=3.0)
+    r2 = run_pipeline(move_video[0], str(tmp_path / "b.mp4"), wd,
+                      workers=1, segment_s=3.0)
+    assert r1.status == "done" and r2.status == "done"
+    log = (Path(wd) / "pipeline.log").read_text(encoding="utf-8")
+    assert log.count("=== run start ===") == 2
+    assert log.count("=== run end ===") == 2

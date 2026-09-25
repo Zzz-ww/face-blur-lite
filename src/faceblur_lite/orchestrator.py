@@ -3,11 +3,15 @@ lease 巡检 → drain 后逐视频质检。R3/R10。"""
 from __future__ import annotations
 
 import multiprocessing as mp
+import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
 
 from faceblur_lite.kernel import KernelParams
+from faceblur_lite.progress import (ChunkState, ProgressReporter, VideoState,
+                                    chunk_diff, format_progress,
+                                    progress_snapshot)
 from faceblur_lite.qc import QCReport, qc_video
 from faceblur_lite.splitter import split_video
 from faceblur_lite.state import SqliteControlPlane
@@ -31,6 +35,19 @@ def _output_for(input_path: str, outdir: str) -> str:
     return str(Path(outdir) / f"{Path(input_path).stem}_blurred.mp4")
 
 
+def _fmt_dur(s: float) -> str:
+    return f"{int(s // 60)}m{int(s % 60):02d}s" if s >= 60 else f"{int(s)}s"
+
+
+def _prog_db_path(workdir: str, cp_url: str | None) -> str | None:
+    """快照库选择（与 blur.sh report_pipeline 同规则）：--go 且 workdir
+    下有 gocp.db → 它；sqlite 模式 → pipeline.db；否则 None（仅 L1 事件）。"""
+    wd = Path(workdir)
+    if cp_url:
+        return str(wd / "gocp.db") if (wd / "gocp.db").is_file() else None
+    return str(wd / "pipeline.db")
+
+
 def _orchestrate(specs: list[tuple[str, str]], workdir: str,
                  workers: int, segment_s: float,
                  params: KernelParams | None,
@@ -45,6 +62,14 @@ def _orchestrate(specs: list[tuple[str, str]], workdir: str,
         cp = SqliteControlPlane(str(Path(workdir) / "pipeline.db"))
     cp.init_db()
 
+    # 进度双出口（spec 2026-09-25 v2）：stderr 粗粒度 + pipeline.log 全量
+    prog_db = _prog_db_path(workdir, cp_url)
+    prog = ProgressReporter(console=lambda s: print(s, file=sys.stderr),
+                            log_path=Path(workdir) / "pipeline.log")
+    prog.run_start(inputs=len(specs), workers=workers,
+                   segment_s=segment_s, det_every=p.det_every,
+                   cp="http" if cp_url else "sqlite")
+
     # 1) 逐视频切片+提交——失败隔离：单视频失败记结果，批次继续（R10）
     submitted: list[tuple[str, int]] = []   # (video_id, chunk_count)
     submit_errors: list[tuple[str, str, str]] = []  # (input, output, error)
@@ -58,8 +83,14 @@ def _orchestrate(specs: list[tuple[str, str]], workdir: str,
                      for i, f in enumerate(files)]
             vid = cp.submit_video(inp, outp, items)
             submitted.append((vid, len(items)))
+            prog.event("video_submit", video=vid, input=Path(inp).name,
+                       output=Path(outp).name, chunks=len(items))
         except Exception as e:              # noqa: BLE001
             submit_errors.append((inp, outp, f"{type(e).__name__}: {e}"))
+            prog.line(f"✖ 提交失败：{Path(inp).name}（{type(e).__name__}）")
+    prog.line(f"提交 {len(submitted)} 视频 → "
+              f"{sum(n for _, n in submitted)} chunks"
+              f"（workers ×{workers}，segment {segment_s:g}s）")
 
     # 2) 共享 Worker 池：一个池消化所有视频的 chunk（队列天然交错）
     procs = []
@@ -70,33 +101,87 @@ def _orchestrate(specs: list[tuple[str, str]], workdir: str,
         proc.start()
         procs.append(proc)
 
-    # 3) 巡检：lease 回收；单视频 failed 不终止批次（失败隔离）
+    # 3) 巡检：lease 回收 + 只读快照 diff 出进度（单视频 failed 不终止批次）
+    vid_set = {vid for vid, _ in submitted}
+    prev_chunks: dict[tuple[str, int], ChunkState] = {}
+    prev_videos: dict[str, VideoState] = {}
     while any(pr.is_alive() for pr in procs):
-        cp.reclaim_expired()
+        reclaimed = cp.reclaim_expired()
+        if reclaimed:
+            prog.event("lease_reclaim", count=reclaimed)
+        snap = progress_snapshot(prog_db) if prog_db else None
+        if snap is not None:
+            videos, chunks = snap
+            mine_v = [v for v in videos if v.video_id in vid_set]
+            mine_c = [c for c in chunks if c.video_id in vid_set]
+            stems = {v.video_id: Path(v.input_path).stem for v in mine_v}
+            for c in chunk_diff(prev_chunks, mine_c):
+                if c.status == "running":
+                    prog.event("chunk_start", video=c.video_id, idx=c.idx,
+                               attempt=c.attempt, worker=c.worker_id or "?")
+                elif c.status == "done":
+                    kv = dict(video=c.video_id, idx=c.idx, attempt=c.attempt,
+                              worker=c.worker_id or "?")
+                    if c.started_at and c.finished_at:
+                        kv["proc_s"] = round(c.finished_at - c.started_at, 1)
+                    prog.event("chunk_done", **kv)
+                elif c.status == "failed":
+                    prog.event("chunk_failed", video=c.video_id, idx=c.idx,
+                               attempt=c.attempt)
+                pc = prev_chunks.get((c.video_id, c.idx))
+                if (pc is not None and c.attempt > pc.attempt
+                        and c.status == "pending"):
+                    prog.line(f"↻ {stems.get(c.video_id, c.video_id)} "
+                              f"chunk#{c.idx} 第 {c.attempt + 1} 次尝试")
+            for v in mine_v:
+                pv = prev_videos.get(v.video_id)
+                if pv is not None and pv.status != v.status:
+                    prog.event("video_status", video=v.video_id,
+                               **{"from": pv.status, "to": v.status})
+            if mine_v:
+                prog.aggregate(format_progress(mine_v))
+            prev_chunks = {(c.video_id, c.idx): c for c in mine_c}
+            prev_videos = {v.video_id: v for v in mine_v}
         time.sleep(0.5)
     for pr in procs:
         pr.join()
 
     # 4) drain 后逐视频质检收尾
     results: list[PipelineResult] = []
+    n_done = n_qcf = n_fail = 0
     for vid, nchunks in submitted:
         video = cp.get_video(vid)
         wall = time.time() - t0
+        stem = Path(video["input_path"]).stem
         if video["status"] == "qc_wait":
+            prog.line(f"qc {stem} …")
             rep = qc_video(video["output_path"], sample_fps=qc_sample_fps)
             status = "done" if rep.passed else "qc_failed"
             cp.finish_video(vid, status)
+            prog.event("qc_result", video=vid, sampled=rep.sampled_frames,
+                       violations=len(rep.violations))
+            prog.line(f"qc {stem} {'✅' if rep.passed else '❌'} "
+                      f"{len(rep.violations)} 违规（抽 {rep.sampled_frames} 帧）")
+            n_done += rep.passed
+            n_qcf += not rep.passed
             results.append(PipelineResult(
                 vid, video["input_path"], video["output_path"],
                 status, rep, wall, nchunks))
         else:   # failed / Worker 池退出时仍未完成（如回收发生在退出边缘）
+            err = video["error"] or "Worker 池退出时任务未到 qc_wait"
+            prog.line(f"✖ {stem} failed：{err}")
+            n_fail += 1
             results.append(PipelineResult(
                 vid, video["input_path"], video["output_path"],
-                video["status"], None, wall, nchunks,
-                video["error"] or "Worker 池退出时任务未到 qc_wait"))
+                video["status"], None, wall, nchunks, err))
+    n_fail += len(submit_errors)
     for inp, outp, err in submit_errors:
         results.append(PipelineResult(
             "", inp, outp, "failed", None, time.time() - t0, 0, err))
+    prog.line(f"收尾：{n_done} done · {n_qcf} qc_failed · {n_fail} failed · "
+              f"总耗时 {_fmt_dur(time.time() - t0)}")
+    prog.run_end(done=n_done, qc_failed=n_qcf, failed=n_fail,
+                 wall_s=round(time.time() - t0, 1))
     return results
 
 
