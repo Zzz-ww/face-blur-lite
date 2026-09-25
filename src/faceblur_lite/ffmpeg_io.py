@@ -50,7 +50,10 @@ def sample_stride_for(fps: float, sample_fps: float) -> int:
     最近值（BUG-016：固定步长会与内核 det_every 节奏锁相——30fps@1fps
     步长 30、det_every=3 时恒抽检测帧，2/3 的预测帧零覆盖。步长与
     lcm(2..8)=840 互素后，抽中帧号 mod d 对一切 d∈2..8 均匀扫遍
-    全部残差类。代价：窗口边界不再恰为 1s，偏离 ≤ 帧级。"""
+    全部残差类。代价（量化）：采样间隔 ≈ m/fps 只增不减，增量 ≤9
+    （840 的 Jacobsthal 间隙）——常规 24-60fps 增 1-5 帧（3-21%）；
+    round 值落 2..10 时一律跳到 11（低帧率/高 sample_fps 档有效密度
+    最多降数倍，qc 的 sampled 计数可观测实际密度）。"""
     m = max(1, round(fps / sample_fps))
     while math.gcd(m, 840) != 1:                 # 840 = lcm(2..8)
         m += 1

@@ -130,9 +130,12 @@ def test_workdir_reuse_rejected(tmp_path, move_video):
     r1 = run_pipeline(move_video[0], str(tmp_path / "a.mp4"), wd,
                       workers=1, segment_s=3.0)
     assert r1.status == "done"
+    log = Path(wd) / "pipeline.log"
     with pytest.raises(WorkdirReuseError, match="workdir"):
         run_pipeline(move_video[0], str(tmp_path / "b.mp4"), wd,
                      workers=1, segment_s=3.0)
     overview = SqliteControlPlane(
         str(Path(wd) / "pipeline.db")).video_overview()
     assert len(overview) == 1            # 拒绝轮未提交任何新视频
+    # 不留痕契约：guard 先于日志器——拒绝轮不追加任何 run start
+    assert log.read_text(encoding="utf-8").count("=== run start ===") == 1

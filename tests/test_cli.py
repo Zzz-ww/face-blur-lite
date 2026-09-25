@@ -30,12 +30,17 @@ def test_cli_split_merge_roundtrip(move_video, tmp_path):
     assert Path(out).exists()
 
 
-def test_cli_pipeline_workdir_reuse_exit_2(move_video, tmp_path):
+def test_cli_pipeline_workdir_reuse_exit_2(move_video, tmp_path, capsys):
     """BUG-017：复用非空 workdir → CLI 退出码 2（输入错误类）+ stderr 指引。"""
     wd = str(tmp_path / "wd")
     assert main(["pipeline", move_video[0], "--outdir", str(tmp_path / "o"),
                  "--workdir", wd, "--workers", "1",
                  "--segment", "3"]) == 0
+    capsys.readouterr()                   # 清第一轮输出
     assert main(["pipeline", move_video[0], "--outdir", str(tmp_path / "o2"),
                  "--workdir", wd, "--workers", "1",
                  "--segment", "3"]) == 2
+    captured = capsys.readouterr()
+    assert "workdir 复用被拒绝" in captured.err
+    assert "pipeline.db" in captured.err   # 指引须点名处置对象
+    assert captured.out == ""              # 拒绝轮 stdout 无 JSON
