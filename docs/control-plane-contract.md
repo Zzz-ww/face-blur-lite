@@ -55,7 +55,7 @@ chunks 终态（done/failed）不可逆——迟到信号不得回退。
 | complete_merge | video → qc_wait（记 merged_path） | — |
 | fail_chunk | 终态（done/failed）不受理；受理则 attempt+1（含耗尽分支）：未耗尽 → pending 重派（记 error）；耗尽 → chunk failed（记 error/finished_at）+ video failed（记 error/finished_at，仅自 processing 翻转） | attempt 单调递增；终态不可逆 |
 | reclaim_expired | running 且 lease_until 已过期且 **video=processing**：未耗尽 → pending 重派（attempt+1）；耗尽 → chunk failed（attempt+1，**不写 chunk error/finished_at**）+ video failed（error='lease 过期且重试耗尽'） | 僵尸回收（Worker 暴死）；终态视频错误原因不被改写；耗尽分支与 fail_chunk 在 chunk 字段写入上**有意不同**（失败原因记在 video 级） |
-| finish_video | video → done / qc_failed | 仅编排器调用 |
+| finish_video | video → done / qc_failed（可选改写 output_path：qc_failed 隔离后指隔离层，缺省不动） | 仅编排器调用 |
 | get_chunk | 读单 chunk 全字段（只读，不存在抛 KeyError） | 契约测试/观测断言 |
 
 ## 4. 不变量
@@ -83,7 +83,7 @@ chunks 终态（done/failed）不可逆——迟到信号不得回退。
 | complete_chunk | POST /chunks/{id}/complete | {metrics} | {merge_claimed: bool} |
 | fail_chunk | POST /chunks/{id}/fail | {error, max_attempts} | {ok: true} |
 | complete_merge | POST /videos/{id}/merge_complete | {merged_path} | {ok: true} |
-| finish_video | POST /videos/{id}/finish | {status} | {ok: true} |
+| finish_video | POST /videos/{id}/finish | {status, output_path?} | {ok: true} |
 | reclaim_expired | POST /maintenance/reclaim | {max_attempts} | {reclaimed: int} |
 | get_video | GET /videos/{id} | — | video 对象（404 + {"error"} 不存在时） |
 | get_chunk | GET /chunks/{id} | — | chunk 对象（404 不存在时；客户端转 KeyError） |
