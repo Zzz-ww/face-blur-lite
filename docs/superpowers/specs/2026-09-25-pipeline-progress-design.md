@@ -70,11 +70,12 @@ Worker 是 `multiprocessing.Process`（spawn），complete/fail 事件发生在�
 ```
 
 - **事件清单**：run_start（含参数）/ video_submit / chunk_start / chunk_done /
-  lease_reclaim / video_status（状态机转变）/ qc_result / run_end
+  chunk_failed / lease_reclaim / video_status（状态机转变）/ qc_result / run_end
 - **追加模式** + `=== run start / end ===` 头尾分隔——跨轮追加是日志叙事惯例
   （区别于已诊断的 DB 跨轮污染问题，那个另行立项）
-- **worker 字段暂缺**：chunks 表无 worker_id 列（fencing，backlog #2），
-  列加上后 chunk_start/done 补 worker=wN
+- **worker 字段直读**：chunks 表已有 worker_id 列（claim 时写入）——
+  chunk_start/done 直接带 `worker=wN`；缺的是 complete_chunk 的
+  `AND worker_id=?` 持有者围栏（fencing，backlog #2，不影响本特性）
 - **写失败静默**：日志绝不反噬主流程（try/except 全包）
 
 ### ProgressReporter（双 sink）
