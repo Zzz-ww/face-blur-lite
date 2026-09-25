@@ -81,7 +81,8 @@ def test_log_write_failure_swallowed(tmp_path):
     r.run_start(inputs=1)      # 目录不存在 → 静默，不抛
     r.event("chunk_done", video="v", idx=0)
     r.run_end(done=1)
-    assert lines == []          # log 失败不影响 console 通道（此处无输出）
+    r.line("提交 1 视频")
+    assert lines == ["[pipeline +0s] 提交 1 视频"]   # log 失败不影响 console 通道
 
 
 def test_console_none_disables_console(tmp_path):
@@ -119,6 +120,23 @@ def test_snapshot_roundtrip(tmp_path):
 
 def test_snapshot_bad_path_returns_none(tmp_path):
     assert progress_snapshot(str(tmp_path / "ghost.db")) is None
+
+
+def test_snapshot_path_with_uri_special_chars(tmp_path):
+    """终审修复回归：路径含 ? 时 mode=ro URI 不能把 ? 后面吃成查询串。"""
+    d = tmp_path / "we?ird"
+    d.mkdir()
+    db = d / "p.db"
+    cp = SqliteControlPlane(str(db))
+    cp.init_db()
+    cp.submit_video("in/a.mp4", "out/a.mp4",
+                    [(0, "in/c0", "out/o0"), (1, "in/c1", "out/o1")])
+    snap = progress_snapshot(str(db))
+    assert snap is not None
+    videos, chunks = snap
+    assert len(videos) == 1
+    assert (videos[0].total, videos[0].done) == (2, 0)
+    assert len(chunks) == 2
 
 
 def test_chunk_diff_rules():

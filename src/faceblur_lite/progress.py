@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Callable
+from urllib.parse import quote
 
 
 @dataclass(frozen=True)
@@ -38,7 +39,7 @@ def progress_snapshot(db_path: str) -> tuple[list[VideoState],
     """只读旁路快照（stats.py 同款 mode=ro，不进 ControlPlane 契约）。
     任何异常返回 None——调用方静默跳过本 tick。"""
     try:
-        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        con = sqlite3.connect(f"file:{quote(db_path)}?mode=ro", uri=True)
         con.row_factory = sqlite3.Row
         try:
             videos = [

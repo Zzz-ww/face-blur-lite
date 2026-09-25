@@ -63,7 +63,7 @@ def test_run_two_videos(tmp_path, face_img):
     assert (out / "m1_blurred.mp4").exists()
     assert (out / "m2_blurred.mp4").exists()
     assert "── 批量指标 ──" in r.stdout          # stats 已聚合
-    assert "详细日志" in r.stdout            # 进度日志路径提示（spec v2）
+    assert "详细日志：" in r.stdout and "pipeline.log" in r.stdout  # 日志路径提示（spec v2）
     assert "chunks/min" in r.stdout
     assert r.stdout.count("qc 通过") == 2        # 逐输出 qc 摘要行
 

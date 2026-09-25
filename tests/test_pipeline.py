@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from conftest import face_img, requires_assets
@@ -87,9 +88,11 @@ def test_pipeline_progress_console_and_log(tmp_path, capsys, move_video):
                        workers=2, segment_s=2.0,
                        params=KernelParams(det_every=2))
     assert res.status == "done"
-    err = capsys.readouterr().err
-    assert "[pipeline +0s] 提交 1 视频 → " in err
+    captured = capsys.readouterr()
+    err, out = captured.err, captured.out
+    assert re.search(r"\[pipeline \+\d+s\] 提交 1 视频 → ", err)
     assert "qc " in err
+    assert "[pipeline" not in out          # 进度只走 stderr，stdout 保持纯净
     assert "收尾：1 done · 0 qc_failed · 0 failed" in err
     log = (tmp_path / "wd" / "pipeline.log").read_text(encoding="utf-8")
     assert log.startswith("=== run start ===")
@@ -112,3 +115,5 @@ def test_pipeline_log_appends_across_runs(tmp_path, move_video):
     log = (Path(wd) / "pipeline.log").read_text(encoding="utf-8")
     assert log.count("=== run start ===") == 2
     assert log.count("=== run end ===") == 2
+    # 锁 vid_set 过滤：无过滤时 run-2 首个 tick 会补发 run-1 终态 chunk，此处超发
+    assert log.count("chunk_done video=") == r1.chunk_count + r2.chunk_count

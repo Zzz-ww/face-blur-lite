@@ -64,6 +64,7 @@ def _orchestrate(specs: list[tuple[str, str]], workdir: str,
 
     # 进度双出口（spec 2026-09-25 v2）：stderr 粗粒度 + pipeline.log 全量
     prog_db = _prog_db_path(workdir, cp_url)
+    Path(workdir).mkdir(parents=True, exist_ok=True)  # gocp 直连 CLI 时无人建 workdir——日志要能落盘
     prog = ProgressReporter(console=lambda s: print(s, file=sys.stderr),
                             log_path=Path(workdir) / "pipeline.log")
     prog.run_start(inputs=len(specs), workers=workers,
