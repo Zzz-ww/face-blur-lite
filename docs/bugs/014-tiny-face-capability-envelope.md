@@ -37,3 +37,31 @@ BUG-011 的距离兜底匹配互相串位（track 88→188，框被邻脸拖走�
 
 `tests/test_detector.py::test_upscale_maps_box_to_original_coords`
 （坐标映射回原图）、`test_upscale_rescues_small_face`（48px 档 1× 盲/2× 检出）
+
+## 附录：SCRFD Phase 0 spike（2026-09-26，go/no-go 闸门）——**GO**
+
+**"OpenCV DNN 无 DeformConv 算子挡住 SCRFD"对 insightface buffalo 系导出被证伪**：
+buffalo_s/m/l 三份检测模型（det_500m/det_2.5g/det_10g）在 cv2 5.0.0
+`readNetFromONNX`+forward 全链通过、lena 均解码出框——det_10g 经 onnx 图
+普查确认该导出无任何 DeformConv 节点（Conv58/Add16/Transpose9/…，opset 11）。
+
+| 候选 | 来源（hf-mirror） | 体积 | ms/帧@640×640¹ | lena 出框 |
+|---|---|---|---|---|
+| YuNet（基线） | 本地 | 232KB | **12.73** | conf 0.909 |
+| **det_500m**（buffalo_s） | immich-app/buffalo_s | 2.5MB | **15.52** | 0.811，定位正确 |
+| det_2.5g（buffalo_m） | immich-app/buffalo_m | 3.3MB | 29.79 | 0.779 |
+| det_10g（buffalo_l） | KlingTeam/LivePortrait | 16.9MB | 85.87 | 0.796，但定位粗（仅 stride-32 头过 0.5，IoU≈0.6）——**不选** |
+
+¹ warmup 3 + 20 次均值，同机同协议。YuNet 720×1406 全幅 = 36.93ms
+（旧记 52ms 为机器状态差异，现测 0.71×）。det_500m 的 720×406 内容带
+面积 < 640×640，实际可望 ~11ms。
+
+**裁定**：GO——det_500m 主候选（同尺寸成本仅 1.22× YuNet，2.5MB，
+sha256 `5e4447f5…ea3a` 三仓一致）。解码层为唯一实现工作量：9 张量 =
+[score×3, dist-bbox×3, kps×3] × strides(8,16,32)，2 锚/cell 共 16800 锚；
+两个坑：bbox 预测须 ×stride；anchor 须逐位置交错复制（np.repeat）。
+det_10g 的 cv2 输出经临时 onnxruntime 1.23.2 交叉验证逐位一致
+（ORT 68.81ms）——cv2.dnn 计算正确性有独立背书。
+
+**网络**：huggingface.co 大陆直连超时；hf-mirror.com 可用但慢（~15KB/s），
+`curl -C -` 断点续传是关键。模型已入 models/（gitignore，不入库）。
