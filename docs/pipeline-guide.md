@@ -432,7 +432,7 @@ stateDiagram-v2
 - **merge（数据面）**：concat demuxer + `-c copy` **秒级**合并（前提：所有 chunk 由同一套钉死参数编码，见 §5.3）；流复制失败降级 libx264 重编码。concat 列表写**绝对路径**（BUG-007）并按 concat 引语法转义撇号（终审修复波）。
 - **容错闭环**：Worker 对 chunk 异常 `fail_chunk`（attempt+1，<3 次回 pending 重派，≥3 次视频 failed）；Worker 进程被 kill -9 → lease 900s 过期 → 编排器巡检回收重派。**终态不可逆**：done/failed 不受理迟到回写（BUG-007 场景：merge 崩溃后迟到的 fail 不得把 done 翻回 pending）。
 - **观测出口（stats）**：只读旁路（`mode=ro`）直读控制面库——排队 P50/P95、处理 P50/P95、吞吐 chunks/min、失败率、retried。不进 ControlPlane 契约（观测读不污染任务状态）。
-- **运行进度与日志（spec 2026-09-25）**：运行期 stderr 打粗粒度进度——`[pipeline +Ns]` 前缀，提交汇总、聚合行（`x/y · 视频 x/y`，≥5s 且有变化才打）、↻ 重试、qc 前后、✖ 终态、收尾汇总；全量细粒度事件追加 `workdir/pipeline.log`（ISO 毫秒时间 + `key=value`：run_start / video_submit / chunk_start / chunk_done / lease_reclaim / video_status / qc_result / run_end，`=== run start/end ===` 头尾分隔，跨轮追加）。数据源 = 父进程巡检 0.5s 只读快照 diff（stats 同款旁路，不进契约，按本轮 video_id 过滤）；快照与写失败一律静默——进度绝不反噬主流程。
+- **运行进度与日志（spec 2026-09-25）**：运行期 stderr 打粗粒度进度——`[pipeline +Ns]` 前缀，提交汇总、聚合行（`x/y · 视频 x/y`，≥5s 且有变化才打）、↻ 重试、qc 前后、✖ 终态、收尾汇总；全量细粒度事件追加 `workdir/pipeline.log`（ISO 毫秒时间 + `key=value`：run_start / video_submit / chunk_start / chunk_done / chunk_failed / lease_reclaim / video_status / qc_result / run_end，`=== run start/end ===` 头尾分隔，跨轮追加）。数据源 = 父进程巡检 0.5s 只读快照 diff（stats 同款旁路，不进契约，按本轮 video_id 过滤）；快照与写失败一律静默——进度绝不反噬主流程。
 - **收尾（blur.sh）**：跑完批量打 stats + 逐输出 qc_one；`--go` 模式下 gocp 的构建/端口/健康检查/trap 清理全由 blur.sh 管理。
 
 ### 7.3 批量级异常（就地）
