@@ -20,6 +20,7 @@ run 选项：
   --outdir DIR    输出目录（默认 outputs/；生成结果不进 git）
                   整洁约定：实验/多配置/批量跑进独立会话目录，如
                   --outdir outputs/20260925-实验名/（见 outputs/README.md）
+  #                 qc_failed 成品隔离在 $OUTDIR/qc_failed/（复核后人工移出=转正）
   --workers N     Worker 数，默认 2（仅 pipeline 模式）
   --segment S     切片秒数，默认 30（仅 pipeline 模式）
   --mode M        auto（默认）| single | pipeline
@@ -130,7 +131,7 @@ check_collisions() {
 QC_BAD=0
 
 qc_one() {  # $1=输出文件
-  local tmp rc summary sampled viol
+  local tmp rc summary sampled viol qd
   if [ ! -f "$1" ]; then
     echo "  ❌ $(basename "$1") 未生成（该视频 failed）"
     QC_BAD=1
@@ -149,6 +150,15 @@ qc_one() {  # $1=输出文件
   else
     echo "  ❌ $(basename "$1") qc 违规（抽 ${sampled} 帧，${viol} 处）"
     QC_BAD=1
+    # qc_failed 隔离（spec 2026-09-25）：通过层不留未验收件。basename 守卫——
+    # 文件已在 qc_failed/ 内（report_pipeline 二次质检复用本函数）则不重复移；
+    # 隔离目录从 $1 自身 dirname 派生，对 OUTDIR 尾斜杠/相对绝对路径免疫。
+    if [ "$(basename "$(dirname "$1")")" != "qc_failed" ]; then
+      qd="$(dirname "$1")/qc_failed"
+      mkdir -p "$qd"
+      mv "$1" "$qd/"
+      echo "  ↳ 已隔离：qc_failed/$(basename "$1")（复核后人工移出=转正）"
+    fi
   fi
 }
 
@@ -167,9 +177,14 @@ report_pipeline() {  # $1=workdir；$2=GO 标志（非空=--go 模式优先 gocp
   fi
   echo ""
   echo "── 输出质检 ──"
-  local p
+  local p f base
   for p in "${INPUTS[@]}"; do
-    qc_one "$OUTDIR/$(stem_of "$p")_blurred.mp4"
+    base="$(stem_of "$p")_blurred.mp4"
+    f="$OUTDIR/$base"
+    if [ ! -f "$f" ] && [ -f "$OUTDIR/qc_failed/$base" ]; then
+      f="$OUTDIR/qc_failed/$base"
+    fi
+    qc_one "$f"
   done
 }
 
