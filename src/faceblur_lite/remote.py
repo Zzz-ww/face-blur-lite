@@ -45,18 +45,22 @@ class HttpControlPlane:
         return self._call("POST", "/chunks/claim",
                           {"worker_id": worker_id, "ttl_s": ttl_s})
 
-    def complete_chunk(self, chunk_id: str, metrics: dict) -> bool:
+    def complete_chunk(self, chunk_id: str, metrics: dict, *,
+                       worker_id: str, attempt: int) -> bool:
         return self._call("POST", f"/chunks/{chunk_id}/complete",
-                          {"metrics": metrics})["merge_claimed"]
+                          {"metrics": metrics, "worker_id": worker_id,
+                           "attempt": attempt})["merge_claimed"]
 
     def complete_merge(self, video_id: str, merged_path: str) -> None:
         self._call("POST", f"/videos/{video_id}/merge_complete",
                    {"merged_path": merged_path})
 
-    def fail_chunk(self, chunk_id: str, error: str,
+    def fail_chunk(self, chunk_id: str, error: str, *,
+                   worker_id: str, attempt: int,
                    max_attempts: int = 3) -> None:
         self._call("POST", f"/chunks/{chunk_id}/fail",
-                   {"error": error, "max_attempts": max_attempts})
+                   {"error": error, "worker_id": worker_id,
+                    "attempt": attempt, "max_attempts": max_attempts})
 
     def reclaim_expired(self, max_attempts: int = 3) -> int:
         return self._call("POST", "/maintenance/reclaim",

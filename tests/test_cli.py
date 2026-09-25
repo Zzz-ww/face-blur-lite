@@ -44,3 +44,28 @@ def test_cli_pipeline_workdir_reuse_exit_2(move_video, tmp_path, capsys):
     assert "workdir 复用被拒绝" in captured.err
     assert "pipeline.db" in captured.err   # 指引须点名处置对象
     assert captured.out == ""              # 拒绝轮 stdout 无 JSON
+
+
+def test_sample_fps_none_all_parses_to_full_density():
+    """顺手件 1：--sample-fps 接受 none/all → None（全密度逐帧）。"""
+    from faceblur_lite.cli import _sample_fps
+    assert _sample_fps("none") is None
+    assert _sample_fps("all") is None
+    assert _sample_fps("ALL") is None
+    assert _sample_fps("2") == 2.0
+    assert _sample_fps("0.5") == 0.5
+
+
+def test_qc_exit_code_three_levels():
+    """退出码分级：0 全过 / 1 仅边缘 / 3 含致命（2 留给环境/输入错误）。"""
+    from faceblur_lite.cli import _qc_exit_code
+    from faceblur_lite.qc import QCReport, Violation
+    ok = QCReport()
+    marginal = QCReport(violations=[
+        Violation(0.0, 0.55, (0, 0, 9, 9), "marginal")])
+    fatal = QCReport(violations=[
+        Violation(0.0, 0.55, (0, 0, 9, 9), "marginal"),
+        Violation(1.0, 0.90, (0, 0, 9, 9), "fatal")])
+    assert _qc_exit_code(ok) == 0
+    assert _qc_exit_code(marginal) == 1
+    assert _qc_exit_code(fatal) == 3

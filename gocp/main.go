@@ -231,9 +231,17 @@ func handleClaim(w http.ResponseWriter, r *http.Request) {
 
 func handleComplete(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Metrics map[string]any `json:"metrics"`
+		Metrics  map[string]any `json:"metrics"`
+		WorkerID string         `json:"worker_id"`
+		Attempt  *int           `json:"attempt"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&req)
+	// 契约 v1.2 持有者围栏：字段缺失即 400（Attempt 用指针区分缺省与 0）
+	// ——防新旧二进制混跑时围栏静默失效
+	if req.WorkerID == "" || req.Attempt == nil {
+		writeErr(w, 400, "worker_id+attempt required（契约 v1.2 持有者围栏）")
+		return
+	}
 	metrics, _ := json.Marshal(req.Metrics)
 	tx, err := db.Begin()
 	if err != nil {
@@ -258,12 +266,12 @@ func handleComplete(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]bool{"merge_claimed": false})
 		return
 	}
-	// 契约 v1.1：仅 running 态受理——迟到 ack（已重派/终态）不算数，
-	// 不进入 join 计数（与 state.py complete_chunk 守卫逐字对应）
+	// 契约 v1.2：仅当前持有者（worker_id+attempt 复合围栏）受理——迟到 ack
+	// 不算数，不进入 join 计数（与 state.py complete_chunk 守卫逐字对应）
 	res, err := tx.Exec(
 		"UPDATE chunks SET status='done', metrics=?, finished_at=? "+
-			"WHERE id=? AND status='running'",
-		string(metrics), nowF(), r.PathValue("id"))
+			"WHERE id=? AND status='running' AND worker_id IS ? AND attempt IS ?",
+		string(metrics), nowF(), r.PathValue("id"), req.WorkerID, *req.Attempt)
 	if err != nil {
 		writeErr(w, 500, err.Error())
 		return
@@ -306,8 +314,15 @@ func handleFail(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Error       string `json:"error"`
 		MaxAttempts int    `json:"max_attempts"`
+		WorkerID    string `json:"worker_id"`
+		Attempt     *int   `json:"attempt"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&req)
+	// 契约 v1.2 持有者围栏：字段缺失即 400（与 handleComplete 同款）
+	if req.WorkerID == "" || req.Attempt == nil {
+		writeErr(w, 400, "worker_id+attempt required（契约 v1.2 持有者围栏）")
+		return
+	}
 	if req.MaxAttempts <= 0 {
 		req.MaxAttempts = 3
 	}
@@ -319,15 +334,17 @@ func handleFail(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 	var videoID, status string
 	var attempt int
-	if err = tx.QueryRow("SELECT video_id, attempt, status FROM chunks WHERE id=?",
-		r.PathValue("id")).Scan(&videoID, &attempt, &status); err != nil {
+	if err = tx.QueryRow("SELECT video_id, attempt, status FROM chunks "+
+		"WHERE id=? AND worker_id IS ? AND attempt IS ?",
+		r.PathValue("id"), req.WorkerID, *req.Attempt).Scan(
+		&videoID, &attempt, &status); err != nil {
 		// DB 错误 ≠ 不存在：仅 ErrNoRows 走守卫路径，其余 500
 		if !errors.Is(err, sql.ErrNoRows) {
 			writeErr(w, 500, err.Error())
 			return
 		}
-		// 缺失 id 与参考实现对齐（Python：row is None 早退静默 no-op，
-		// 不抛 KeyError）——commit 空事务 + ok=true
+		// 缺失 id / 僵尸迟到 fail（契约 v1.2 围栏不匹配）与参考实现对齐
+		//（Python：row is None 早退静默 no-op）——commit 空事务 + ok=true
 		if err = tx.Commit(); err != nil {
 			writeErr(w, 500, err.Error())
 			return

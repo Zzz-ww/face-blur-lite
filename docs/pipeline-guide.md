@@ -34,7 +34,7 @@ flowchart TD
     MJ --> OUT
     OUT --> QC["§6 质检 qc<br/>输出域独立复检"]
     QC -->|"0 违规"| OK["done · 退出码 0"]
-    QC -->|"有违规"| BAD["qc_failed · 退出码 1 · 成品隔离 qc_failed/"]
+    QC -->|"有违规"| BAD["qc_failed · 退出码 1（仅边缘）/ 3（含致命）· 成品隔离 qc_failed/"]
 ```
 
 ### 0.2 一帧的格式变换总表（"数据尺"总纲）
@@ -78,8 +78,11 @@ flowchart TD
 | 码 | 含义 | 触发者 |
 |---|---|---|
 | 0 | 全部 done 且 qc 全过 | — |
-| 1 | 存在 failed / qc_failed | 内核/管线/qc |
+| 1 | 仅边缘违规（fatal=0）或存在 failed / qc_failed | 内核/管线/qc |
+| 3 | qc 含致命违规（conf ≥ T_FATAL_CONF=0.7，临时待校准） | qc |
 | 2 | 环境 / 输入 / 参数错误 | blur.sh 自身或 faceblur-lite CLI（如 workdir 复用拒绝，blur.sh 原样透传） |
+
+优先级 **2 > 3 > 1**：环境/输入错误压过一切；致命压过边缘/failed。
 
 ### 1.3 就地异常
 
@@ -335,6 +338,8 @@ flowchart TD
 
 1. `conf ≥ 0.5`（输出域仍有清晰人脸结构）；
 2. 框面积在 `[8×8, 0.4×W×H]`——微框/巨框多为**糊纹理被误检出的噪声**，豁免不算违规。
+3. 违规再按 **conf 单轴**分严重度：`conf ≥ T_FATAL_CONF(0.7)` = 致命（fatal），否则边缘（marginal）——阈值临时待校准，依据与重校准触发条件见 [qc-severity-calibration.md](qc-severity-calibration.md)。分级只影响退出码（1/3）、stderr 分列与复核排序，**隔离语义不变：任何违规仍隔离**；
+4. 违规清单的 `box` 字段为 `(x1, y1, x2, y2)` 左上/右下像素坐标——**非 xywh**。
 
 ### 6.3 抽样相位：BUG-010 的完整故事
 
@@ -367,7 +372,7 @@ real_video 全密度复检的完整取证链（每步都有独立证据，详见
 
 | 异常 | 处置 |
 |---|---|
-| qc 有违规 | 该视频终态 qc_failed（退出码 1），**成品移入 `outdir/qc_failed/`**（通过层不留未验收件）——不自动重跑（确定性系统原参数重试必然同样结果）。复核=按违规清单 t_sec 精确回放定性（真漏/半糊/误检），可接受则人工移出转正；调参重跑换新 workdir 后同名写通过层 |
+| qc 有违规 | 该视频终态 qc_failed（退出码 1=仅边缘 / 3=含致命），**成品移入 `outdir/qc_failed/`**（同名递增 `_1`，上一轮复核证据不覆盖）——不自动重跑（确定性系统原参数重试必然同样结果）。复核=按违规清单 t_sec 精确回放定性（真漏/半糊/误检），可接受则人工移出转正；调参重跑换新 workdir 后同名写通过层 |
 | 完全未脱敏（如检测器被强制失明） | 全帧违规，qc 必须兜住（回归：`det_conf>1` 强制零检测 → qc 判不过） |
 | 糊纹理误检（微框/巨框） | 面积双阈值豁免 |
 | 抽检漏检风险 | 最终验收 sample_fps=None 全密度 |
@@ -376,11 +381,10 @@ real_video 全密度复检的完整取证链（每步都有独立证据，详见
 > ```bash
 > ./venv/bin/faceblur-lite qc out.mp4              # 1fps 抽检（日常）
 > ls outputs/<会话>/qc_failed/     # qc_failed 成品隔离区（复核后人工移出=转正）
-> # 全密度逐帧（最终验收）——全密度语义是 sample_fps=None，目前仅库接口可达：
-> ./venv/bin/python -c "from faceblur_lite.qc import qc_video; \
->   r = qc_video('out.mp4', sample_fps=None); print(r.passed, len(r.violations))"
+> # 全密度逐帧（最终验收）——全密度语义是 --sample-fps none：
+> ./venv/bin/faceblur-lite qc out.mp4 --sample-fps none
 > ```
-> 注意：CLI 的 `--sample-fps` 只接受正数（传 0 会在步长计算处除零）。代码：[qc.py](../src/faceblur_lite/qc.py)；回归：`tests/test_qc.py`
+> 注意：`--sample-fps` 接受 `"none"`/`"all"`（不区分大小写，全密度逐帧，最终验收）或正数 fps（传 0 会在步长计算处除零）。代码：[qc.py](../src/faceblur_lite/qc.py)；回归：`tests/test_qc.py`
 
 ---
 
@@ -433,7 +437,7 @@ stateDiagram-v2
 - **merge（数据面）**：concat demuxer + `-c copy` **秒级**合并（前提：所有 chunk 由同一套钉死参数编码，见 §5.3）；流复制失败降级 libx264 重编码。concat 列表写**绝对路径**（BUG-007）并按 concat 引语法转义撇号（终审修复波）。
 - **容错闭环**：Worker 对 chunk 异常 `fail_chunk`（attempt+1，<3 次回 pending 重派，≥3 次视频 failed）；Worker 进程被 kill -9 → lease 900s 过期 → 编排器巡检回收重派。**终态不可逆**：done/failed 不受理迟到回写（BUG-007 场景：merge 崩溃后迟到的 fail 不得把 done 翻回 pending）。
 - **观测出口（stats）**：只读旁路（`mode=ro`）直读控制面库——排队 P50/P95、处理 P50/P95、吞吐 chunks/min、失败率、retried。不进 ControlPlane 契约（观测读不污染任务状态）。
-- **运行进度与日志（spec 2026-09-25）**：运行期 stderr 打粗粒度进度——`[pipeline +Ns]` 前缀，提交汇总、聚合行（`x/y · 视频 x/y`，≥5s 且有变化才打）、↻ 重试、qc 前后、✖ 终态、收尾汇总；全量细粒度事件追加 `workdir/pipeline.log`（ISO 毫秒时间 + `key=value`：run_start / video_submit / chunk_start / chunk_done / chunk_failed / lease_reclaim / video_status / qc_result / quarantine / quarantine_failed / run_end，`=== run start/end ===` 头尾分隔，跨轮追加）。数据源 = 父进程巡检 0.5s 只读快照 diff（stats 同款旁路，不进契约，按本轮 video_id 过滤）；快照与写失败一律静默——进度绝不反噬主流程。
+- **运行进度与日志（spec 2026-09-25）**：运行期 stderr 打粗粒度进度——`[pipeline +Ns]` 前缀，提交汇总、聚合行（`x/y · 视频 x/y`，≥5s 且有变化才打）、↻ 重试、qc 前后、✖ 终态、收尾汇总；全量细粒度事件追加 `workdir/pipeline.log`（ISO 毫秒时间 + `key=value`：run_start / video_submit / chunk_start / chunk_done / chunk_failed / chunk_retry / lease_reclaim / video_status / qc_result（含 fatal=/marginal= 分列键）/ quarantine / quarantine_failed / run_end，`=== run start/end ===` 头尾分隔，跨轮追加）。数据源 = 父进程巡检 0.5s 只读快照 diff（stats 同款旁路，不进契约，按本轮 video_id 过滤）；快照与写失败一律静默——进度绝不反噬主流程。
 - **收尾（blur.sh）**：跑完批量打 stats + 逐输出 qc_one；`--go` 模式下 gocp 的构建/端口/健康检查/trap 清理全由 blur.sh 管理。  
   qc ❌ → 成品隔离 qc_failed/（Python 侧 _quarantine；single 侧 blur.sh qc_one 同语义）
 

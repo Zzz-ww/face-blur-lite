@@ -72,6 +72,35 @@ def chunk_diff(prev: dict[tuple[str, int], ChunkState],
             or p.status != c.status or p.attempt != c.attempt]
 
 
+def emit_chunk_events(rep: ProgressReporter,
+                      prev: dict[tuple[str, int], ChunkState],
+                      cur: list[ChunkState],
+                      stems: dict[str, str]) -> None:
+    """巡检 diff 出 chunk 级事件：start/done/failed 全量发射；
+    attempt 增加且回 pending = 重试（chunk_retry 入 log——顺手件 5，
+    此前只有 stderr ↻ 行）。stems：video_id → 输入主干（console 行用）。"""
+    for c in chunk_diff(prev, cur):
+        if c.status == "running":
+            rep.event("chunk_start", video=c.video_id, idx=c.idx,
+                      attempt=c.attempt, worker=c.worker_id or "?")
+        elif c.status == "done":
+            kv = dict(video=c.video_id, idx=c.idx, attempt=c.attempt,
+                      worker=c.worker_id or "?")
+            if c.started_at and c.finished_at:
+                kv["proc_s"] = round(c.finished_at - c.started_at, 1)
+            rep.event("chunk_done", **kv)
+        elif c.status == "failed":
+            rep.event("chunk_failed", video=c.video_id, idx=c.idx,
+                      attempt=c.attempt)
+        p = prev.get((c.video_id, c.idx))
+        if (p is not None and c.attempt > p.attempt
+                and c.status == "pending"):
+            rep.event("chunk_retry", video=c.video_id, idx=c.idx,
+                      attempt=c.attempt)
+            rep.line(f"↻ {stems.get(c.video_id, c.video_id)} "
+                     f"chunk#{c.idx} 第 {c.attempt + 1} 次尝试")
+
+
 def format_progress(videos: list[VideoState]) -> str:
     """聚合行：'11/13 · a_5min ✔ · b_30s 1/2'（完成打 ✔，进行中打 x/y）。"""
     if not videos:

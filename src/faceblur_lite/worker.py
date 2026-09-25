@@ -34,7 +34,8 @@ def worker_loop(cp: ControlPlane, worker_id: str,
             merge_claimed = cp.complete_chunk(task["id"], {
                 "frames": rep.frames, "detections": rep.detections,
                 "predicted_frames": rep.predicted_frames,
-                "segments": rep.segments, "wall_s": rep.wall_s})
+                "segments": rep.segments, "wall_s": rep.wall_s},
+                worker_id=worker_id, attempt=task["attempt"])
             if merge_claimed:      # 原子 Join：最后完成者负责合并
                 video = cp.get_video(task["video_id"])
                 merge_chunks(cp.chunk_outputs(task["video_id"]),
@@ -42,4 +43,5 @@ def worker_loop(cp: ControlPlane, worker_id: str,
                 cp.complete_merge(task["video_id"], video["output_path"])
             done += 1
         except Exception as e:      # noqa: BLE001 —— 单 chunk 失败不拖死 Worker
-            cp.fail_chunk(task["id"], f"{type(e).__name__}: {e}")
+            cp.fail_chunk(task["id"], f"{type(e).__name__}: {e}",
+                          worker_id=worker_id, attempt=task["attempt"])

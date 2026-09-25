@@ -3,8 +3,8 @@
 import re
 
 from faceblur_lite.progress import (ChunkState, ProgressReporter, VideoState,
-                                    chunk_diff, format_progress,
-                                    progress_snapshot)
+                                    chunk_diff, emit_chunk_events,
+                                    format_progress, progress_snapshot)
 from faceblur_lite.state import SqliteControlPlane
 
 
@@ -102,8 +102,10 @@ def test_snapshot_roundtrip(tmp_path):
                            (2, "in/c2", "out/o2")])
     c0 = cp.claim_chunk("w0", 900)
     c1 = cp.claim_chunk("w0", 900)
-    cp.complete_chunk(c0["id"], {"ms": 100})
-    cp.fail_chunk(c1["id"], "boom")            # attempt 0→1 回 pending
+    cp.complete_chunk(c0["id"], {"ms": 100},
+                      worker_id="w0", attempt=c0["attempt"])
+    cp.fail_chunk(c1["id"], "boom",
+                  worker_id="w0", attempt=c1["attempt"])  # attempt 0→1 回 pending
     snap = progress_snapshot(str(tmp_path / "p.db"))
     assert snap is not None
     videos, chunks = snap
@@ -157,3 +159,31 @@ def test_format_progress():
           VideoState("v3", "/x/c.mp4", "qc_wait", 1, 0)]
     assert format_progress(vs) == "11/13 · a_5min ✔ · b_30s 1/2 · c 0/1"
     assert format_progress([]) == "0/0"
+
+
+def test_chunk_retry_event_and_line(tmp_path):
+    """顺手件 5：attempt 增加且回 pending → chunk_retry 事件入 log +
+    ↻ console 行（此前仅 console 行，"全量细粒度日志"对重试不成立）。"""
+    mono, lines = FakeClock(), []
+    r = make_reporter(tmp_path, mono, lines)
+    prev = {("v1", 0): ChunkState("v1", 0, "running", 0, "w0", 1.0, None)}
+    cur = [ChunkState("v1", 0, "pending", 1, None, 1.0, None)]
+    emit_chunk_events(r, prev, cur, {"v1": "demo"})
+    log = (tmp_path / "pipeline.log").read_text(encoding="utf-8")
+    assert "chunk_retry video=v1 idx=0 attempt=1" in log
+    assert any("↻ demo chunk#0 第 2 次尝试" in ln for ln in lines)
+
+
+def test_chunk_retry_not_fired_on_first_seen_or_done(tmp_path):
+    """负例：首见（prev=None）与 done 迁移（attempt 虽增）不发 chunk_retry。"""
+    mono, lines = FakeClock(), []
+    r = make_reporter(tmp_path, mono, lines)
+    emit_chunk_events(r, {}, [ChunkState("v1", 0, "running", 0, "w0",
+                                         1.0, None)], {})
+    log1 = (tmp_path / "pipeline.log").read_text(encoding="utf-8")
+    assert "chunk_retry" not in log1 and "chunk_start" in log1
+    prev = {("v1", 0): ChunkState("v1", 0, "running", 0, "w0", 1.0, None)}
+    emit_chunk_events(r, prev,
+                      [ChunkState("v1", 0, "done", 1, "w0", 1.0, 2.0)], {})
+    assert "chunk_retry" not in (tmp_path / "pipeline.log").read_text(
+        encoding="utf-8")

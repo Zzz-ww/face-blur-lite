@@ -10,7 +10,7 @@ from pathlib import Path
 
 from faceblur_lite.kernel import KernelParams
 from faceblur_lite.progress import (ChunkState, ProgressReporter, VideoState,
-                                    chunk_diff, format_progress,
+                                    emit_chunk_events, format_progress,
                                     progress_snapshot)
 from faceblur_lite.qc import QCReport, qc_video
 from faceblur_lite.splitter import split_video
@@ -47,11 +47,17 @@ def _fmt_dur(s: float) -> str:
 
 def _quarantine(out_path: str) -> str:
     """qc_failed 成品移入 outdir/qc_failed/（spec 2026-09-25：通过层
-    不留未验收件，转正=人工移出）。OSError 由调用侧容错。"""
+    不留未验收件，转正=人工移出）。同名已存在 → _1/_2… 递增——保住
+    上一轮复核证据（POSIX rename 静默覆盖=顺手件 4 收口）。
+    OSError 由调用侧容错。"""
     src = Path(out_path)
     dst_dir = src.parent / "qc_failed"
     dst_dir.mkdir(parents=True, exist_ok=True)
     dst = dst_dir / src.name
+    n = 1
+    while dst.exists():
+        dst = dst_dir / f"{src.stem}_{n}{src.suffix}"
+        n += 1
     src.rename(dst)
     return str(dst)
 
@@ -142,24 +148,7 @@ def _orchestrate(specs: list[tuple[str, str]], workdir: str,
             mine_v = [v for v in videos if v.video_id in vid_set]
             mine_c = [c for c in chunks if c.video_id in vid_set]
             stems = {v.video_id: Path(v.input_path).stem for v in mine_v}
-            for c in chunk_diff(prev_chunks, mine_c):
-                if c.status == "running":
-                    prog.event("chunk_start", video=c.video_id, idx=c.idx,
-                               attempt=c.attempt, worker=c.worker_id or "?")
-                elif c.status == "done":
-                    kv = dict(video=c.video_id, idx=c.idx, attempt=c.attempt,
-                              worker=c.worker_id or "?")
-                    if c.started_at and c.finished_at:
-                        kv["proc_s"] = round(c.finished_at - c.started_at, 1)
-                    prog.event("chunk_done", **kv)
-                elif c.status == "failed":
-                    prog.event("chunk_failed", video=c.video_id, idx=c.idx,
-                               attempt=c.attempt)
-                pc = prev_chunks.get((c.video_id, c.idx))
-                if (pc is not None and c.attempt > pc.attempt
-                        and c.status == "pending"):
-                    prog.line(f"↻ {stems.get(c.video_id, c.video_id)} "
-                              f"chunk#{c.idx} 第 {c.attempt + 1} 次尝试")
+            emit_chunk_events(prog, prev_chunks, mine_c, stems)
             for v in mine_v:
                 pv = prev_videos.get(v.video_id)
                 if pv is not None and pv.status != v.status:
@@ -196,16 +185,21 @@ def _orchestrate(specs: list[tuple[str, str]], workdir: str,
                     suffix = f" —— 隔离失败（{type(e).__name__}），文件留原位"
             cp.finish_video(vid, status, output_path=final_path)
             prog.event("qc_result", video=vid, sampled=rep.sampled_frames,
-                       violations=len(rep.violations))
+                       violations=len(rep.violations),
+                       fatal=rep.fatal_count, marginal=rep.marginal_count)
             if not rep.passed:
                 if q_err is None:
                     prog.event("quarantine", video=vid,
                                to=Path(final_path).name)
                 else:
                     prog.event("quarantine_failed", video=vid, error=q_err)
-            prog.line(f"qc {stem} {'✅' if rep.passed else '❌'} "
-                      f"{len(rep.violations)} 违规（抽 {rep.sampled_frames} 帧）"
-                      f"{suffix}")
+            if rep.passed:
+                prog.line(f"qc {stem} ✅ 0 违规（抽 {rep.sampled_frames} 帧）")
+            else:
+                prog.line(f"qc {stem} ❌ {len(rep.violations)} 违规"
+                          f"（致命 {rep.fatal_count} · 边缘 "
+                          f"{rep.marginal_count}，抽 {rep.sampled_frames} 帧）"
+                          f"{suffix}")
             n_done += rep.passed
             n_qcf += not rep.passed
             results.append(PipelineResult(

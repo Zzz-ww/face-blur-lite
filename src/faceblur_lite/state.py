@@ -99,11 +99,13 @@ class SqliteControlPlane:
                        lease_until=now + ttl_s)
             return out
 
-    def complete_chunk(self, chunk_id: str, metrics: dict) -> bool:
+    def complete_chunk(self, chunk_id: str, metrics: dict, *,
+                       worker_id: str, attempt: int) -> bool:
         """置 done；若该 video 全部 done，同一事务内认领 merge。
 
         并发下恰好一个调用者拿到 True——原子 Join（scatter-gather 门控）。
-        仅 running 态受理：迟到 ack（chunk 已被重派或终态）返回 False。
+        契约 v1.2 持有者围栏：WHERE 匹配 (worker_id, attempt) 复合键——
+        lease 失效重派后的僵尸迟到 ack 返回 False，不污染现任 done。
         """
         with _connect(self.db_path) as c:
             c.execute("BEGIN IMMEDIATE")
@@ -111,8 +113,10 @@ class SqliteControlPlane:
                             (chunk_id,)).fetchone()
             cur = c.execute(
                 "UPDATE chunks SET status='done', metrics=?, finished_at=? "
-                "WHERE id=? AND status='running'",
-                (json.dumps(metrics), time.time(), chunk_id))
+                "WHERE id=? AND status='running' "
+                "AND worker_id IS ? AND attempt IS ?",
+                (json.dumps(metrics), time.time(), chunk_id,
+                 worker_id, attempt))
             if cur.rowcount == 0:
                 return False
             left = c.execute(
@@ -132,15 +136,20 @@ class SqliteControlPlane:
                 "UPDATE videos SET status='qc_wait', merged_path=? WHERE id=?",
                 (merged_path, video_id))
 
-    def fail_chunk(self, chunk_id: str, error: str,
+    def fail_chunk(self, chunk_id: str, error: str, *,
+                   worker_id: str, attempt: int,
                    max_attempts: int = 3) -> None:
         """终态（done/failed）不可逆：迟到 fail 不受理（BUG-007 场景——
         merge 崩溃后对已完成 chunk 的 fail 不得把 done 翻回 pending）。
+        契约 v1.2 持有者围栏：SELECT 匹配 (worker_id, attempt)——僵尸迟到
+        fail 静默 no-op，不得弹回现任任务/耗尽现任 attempt。
         每次受理 attempt+1（含耗尽分支——终态记录最终计数，与 reclaim 对齐）。"""
         with _connect(self.db_path) as c:
             c.execute("BEGIN IMMEDIATE")
-            row = c.execute("SELECT * FROM chunks WHERE id=?",
-                            (chunk_id,)).fetchone()
+            row = c.execute(
+                "SELECT * FROM chunks WHERE id=? "
+                "AND worker_id IS ? AND attempt IS ?",
+                (chunk_id, worker_id, attempt)).fetchone()
             if row is None or row["status"] in ("done", "failed"):
                 return
             now = time.time()

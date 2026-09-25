@@ -12,13 +12,23 @@ from faceblur_lite.ffmpeg_io import FFmpegReader
 
 DEFAULT_SAMPLE_FPS = 1.0
 DEFAULT_PASS_CONF = 0.5
+T_FATAL_CONF = 0.7   # 致命/边缘分界，临时待校准（2026-09-25 444 处分布
+                     # 与依据见 docs/qc-severity-calibration.md；SCRFD 升级
+                     # 或新增视觉标签 ≥20 处时须重校准；0.5-0.7 段零标签
+                     # =已知局限，分界保守取 0.7，无标签段归边缘）
+
+
+def severity_for(conf: float) -> str:
+    """conf 单轴分桶：致命（高置信真信号）/边缘（低置信残块）。"""
+    return "fatal" if conf >= T_FATAL_CONF else "marginal"
 
 
 @dataclass
 class Violation:
     t_sec: float
     conf: float
-    box: tuple[int, int, int, int]
+    box: tuple[int, int, int, int]   # (x1, y1, x2, y2) 左上/右下像素坐标——非 xywh
+    severity: str                    # "fatal"/"marginal"（severity_for 分桶）
 
 
 @dataclass
@@ -29,6 +39,14 @@ class QCReport:
     @property
     def passed(self) -> bool:
         return not self.violations
+
+    @property
+    def fatal_count(self) -> int:
+        return sum(1 for v in self.violations if v.severity == "fatal")
+
+    @property
+    def marginal_count(self) -> int:
+        return sum(1 for v in self.violations if v.severity == "marginal")
 
 
 def qc_video(path: str, sample_fps: float | None = DEFAULT_SAMPLE_FPS,
@@ -49,5 +67,6 @@ def qc_video(path: str, sample_fps: float | None = DEFAULT_SAMPLE_FPS,
                     continue    # 微框/巨框多为糊纹理噪声，不算违规
                 rep.violations.append(Violation(
                     round(t, 2), d.conf,
-                    (int(d.x1), int(d.y1), int(d.x2), int(d.y2))))
+                    (int(d.x1), int(d.y1), int(d.x2), int(d.y2)),
+                    severity_for(d.conf)))
     return rep

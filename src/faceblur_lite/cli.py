@@ -11,6 +11,21 @@ from pathlib import Path
 from faceblur_lite import __version__
 
 
+def _qc_exit_code(rep) -> int:
+    """qc 退出码分级：0 全过 / 1 仅边缘 / 3 含致命。2 留给环境/输入
+    错误，优先级 2>3>1（blur.sh rc 链同语义）。"""
+    if rep.passed:
+        return 0
+    return 3 if rep.fatal_count else 1
+
+
+def _sample_fps(v: str) -> float | None:
+    """"none"/"all" → None（全密度逐帧，最终验收用）；其余按 float。"""
+    if v.lower() in ("none", "all"):
+        return None
+    return float(v)
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="faceblur-lite")
     ap.add_argument("--version", action="version", version=__version__)
@@ -57,7 +72,8 @@ def main(argv: list[str] | None = None) -> int:
 
     q = sub.add_parser("qc", help="输出域抽帧复检")
     q.add_argument("video")
-    q.add_argument("--sample-fps", type=float, default=1.0)
+    q.add_argument("--sample-fps", type=_sample_fps, default=1.0,
+                   help='抽样密度；"none"/"all"=全密度逐帧（最终验收）')
 
     d = sub.add_parser("demo-video", help="生成合成测试视频")
     d.add_argument("output")
@@ -106,6 +122,8 @@ def main(argv: list[str] | None = None) -> int:
             "output": r.output_path,
             "error": r.error} for r in results],
             ensure_ascii=False, indent=2))
+        if any(r.qc is not None and r.qc.fatal_count > 0 for r in results):
+            return 3          # 含致命违规（契约 2026-09-25 分级：2>3>1）
         return 0 if all(r.status == "done" for r in results) else 1
 
     if args.cmd == "worker":
@@ -142,9 +160,10 @@ def main(argv: list[str] | None = None) -> int:
         rep = qc_video(args.video, sample_fps=args.sample_fps)
         print(json.dumps({
             "passed": rep.passed, "sampled": rep.sampled_frames,
+            "fatal": rep.fatal_count, "marginal": rep.marginal_count,
             "violations": [v.__dict__ for v in rep.violations]},
             ensure_ascii=False, indent=2))
-        return 0 if rep.passed else 1
+        return _qc_exit_code(rep)
 
     if args.cmd == "demo-video":
         from faceblur_lite.testmedia import build_video, load_face
