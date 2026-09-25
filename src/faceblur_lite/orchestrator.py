@@ -18,6 +18,12 @@ from faceblur_lite.state import SqliteControlPlane
 from faceblur_lite.worker import worker_loop
 
 
+class WorkdirReuseError(RuntimeError):
+    """sqlite 模式下 workdir 已含历史视频记录（BUG-017：跨轮复用会
+    污染 stats、遗留 pending chunk 会被新 Worker 池误认领）。远端
+    控制面（--cp-url）是共享队列语义，豁免。resume=演进 backlog #6）。"""
+
+
 @dataclass
 class PipelineResult:
     video_id: str
@@ -61,6 +67,15 @@ def _orchestrate(specs: list[tuple[str, str]], workdir: str,
     else:           # 默认：SQLite 内嵌控制面
         cp = SqliteControlPlane(str(Path(workdir) / "pipeline.db"))
     cp.init_db()
+    if not cp_url:      # BUG-017：本地 workdir=一次性工件；远端=共享队列豁免
+        existing = cp.video_overview()
+        if existing:
+            raise WorkdirReuseError(
+                f"workdir 已含 {len(existing)} 个历史视频记录"
+                f"（{Path(workdir) / 'pipeline.db'}）——跨轮复用会污染 stats、"
+                f"遗留 pending chunk 会被本轮 Worker 池认领。"
+                f"请换新 --workdir，或删除旧 pipeline.db 重来"
+                f"（断点续跑=演进项）")
 
     # 进度双出口（spec 2026-09-25 v2）：stderr 粗粒度 + pipeline.log 全量
     prog_db = _prog_db_path(workdir, cp_url)

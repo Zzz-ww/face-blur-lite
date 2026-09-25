@@ -263,6 +263,14 @@ cmd_run() {
     fi
     rc=$?
     set -e
+    if [ "$rc" -eq 2 ]; then
+      # 输入/环境错误类最高优先，原样透传（BUG-017：workdir 复用拒绝）。
+      # 不跑 report：本轮派发前即被整体拒绝，qc_one 会误报"未生成（该视频
+      # failed）"并把 QC_BAD 置位、rc 被改写成 1——stderr 指引已由 CLI 打出。
+      stop_gocp
+      trap - EXIT INT TERM
+      return 2
+    fi
     report_pipeline "$WORKDIR" "$GO"
     stop_gocp
     trap - EXIT INT TERM
@@ -304,7 +312,8 @@ cmd_run() {
       rm -f "$tmp" "$err"
     done
   fi
-  if [ "$QC_BAD" -ne 0 ]; then rc=1; fi
+  # rc 2（输入/环境错误类）不被 QC_BAD 改写成 1——错误类别优先于失败计数
+  if [ "$QC_BAD" -ne 0 ] && [ "$rc" -ne 2 ]; then rc=1; fi
   return "$rc"
 }
 

@@ -28,3 +28,17 @@ def test_pipeline_with_go_control_plane(tmp_path, move_video, go_cp_url):
     assert res.status == "done"
     assert res.qc.passed
     assert res.chunk_count >= 2
+
+
+@requires_assets
+def test_go_control_plane_reuse_exempt(go_cp_url, move_video, tmp_path):
+    """BUG-017 边界裁定回归：gocp=共享队列语义，同 workdir 连跑两轮
+    不触发 WorkdirReuseError（若豁免被删，此处在第二轮变红）。"""
+    wd = str(tmp_path / "wd")
+    r1 = run_pipeline(move_video[0], str(tmp_path / "a.mp4"), wd,
+                      workers=1, segment_s=3.0, cp_url=go_cp_url)
+    r2 = run_pipeline(move_video[0], str(tmp_path / "b.mp4"), wd,
+                      workers=1, segment_s=3.0, cp_url=go_cp_url)
+    assert r1.status == "done" and r2.status == "done"
+    vids = HttpControlPlane(go_cp_url).video_overview()
+    assert len(vids) == 2            # 库即队列：两轮累积而非拒绝
