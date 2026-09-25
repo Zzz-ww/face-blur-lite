@@ -6,6 +6,7 @@ R4 输入格式链路：视频文件 --ffmpeg -f rawvideo -pix_fmt bgr24 pipe-->
 from __future__ import annotations
 
 import json
+import math
 import subprocess
 from dataclasses import dataclass
 
@@ -44,12 +45,25 @@ def probe(path: str) -> VideoMeta:
     )
 
 
+def sample_stride_for(fps: float, sample_fps: float) -> int:
+    """跨步抽样步长：round(fps/sample_fps) 向上取整到与 2..8 全互素的
+    最近值（BUG-016：固定步长会与内核 det_every 节奏锁相——30fps@1fps
+    步长 30、det_every=3 时恒抽检测帧，2/3 的预测帧零覆盖。步长与
+    lcm(2..8)=840 互素后，抽中帧号 mod d 对一切 d∈2..8 均匀扫遍
+    全部残差类。代价：窗口边界不再恰为 1s，偏离 ≤ 帧级。"""
+    m = max(1, round(fps / sample_fps))
+    while math.gcd(m, 840) != 1:                 # 840 = lcm(2..8)
+        m += 1
+    return m
+
+
 class FFmpegReader:
     """逐帧读取。sample_fps 不为 None 时按帧号跨步抽样（质检用）：
-    步长 N=round(fps/sample_fps)，每个窗口取中点帧。抽样帧因此必然是
-    原始帧序列的逐帧成员，时间戳可精确还原（BUG-010：-vf fps 滤镜
-    在部分容器上有恒定相位偏移——实测本仓测试视频 +14 帧——且输出的
-    帧不再与原始帧一一同源，时间标签不可信）。"""
+    步长 N=sample_stride_for(fps, sample_fps)（BUG-016：互素取整），
+    首窗取中点帧，此后每 N 帧一抽。抽样帧因此必然是原始帧序列的
+    逐帧成员，时间戳可精确还原（BUG-010：-vf fps 滤镜在部分容器上
+    有恒定相位偏移——实测本仓测试视频 +14 帧——且输出的帧不再与
+    原始帧一一同源，时间标签不可信）。"""
 
     def __init__(self, path: str, sample_fps: float | None = None):
         self.path = path
@@ -57,7 +71,7 @@ class FFmpegReader:
         self.sample_stride = 1
         self.sample_offset = 0
         if sample_fps is not None and self.meta.fps > 0:
-            self.sample_stride = max(1, round(self.meta.fps / sample_fps))
+            self.sample_stride = sample_stride_for(self.meta.fps, sample_fps)
             self.sample_offset = self.sample_stride // 2
         cmd = ["ffmpeg", "-v", "error", "-i", path,
                "-f", "rawvideo", "-pix_fmt", "bgr24", "-"]
