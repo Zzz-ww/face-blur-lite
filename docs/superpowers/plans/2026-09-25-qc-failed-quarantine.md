@@ -256,6 +256,10 @@ git commit -m "feat(pipeline): qc_failed 成品隔离 outdir/qc_failed/——事
 
 - [ ] **Step 1: 实现**
 
+qc_one 函数头的 `local tmp rc summary sampled viol` 行须追加 `qd`（新分支
+引入的隔离目录变量；否则 bash 3.2 下泄漏为全局——功能可用但违背本函数
+local 纪律）。
+
 qc_one 的 `else`（❌）分支替换为：
 
 ```sh
