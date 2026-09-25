@@ -338,7 +338,7 @@ flowchart TD
 
 1. `conf ≥ 0.5`（输出域仍有清晰人脸结构）；
 2. 框面积在 `[8×8, 0.4×W×H]`——微框/巨框多为**糊纹理被误检出的噪声**，豁免不算违规。
-3. 违规再按 **conf 单轴**分严重度：`conf ≥ T_FATAL_CONF(0.7)` = 致命（fatal），否则边缘（marginal）——阈值临时待校准，依据与重校准触发条件见 [qc-severity-calibration.md](qc-severity-calibration.md)。分级只影响退出码（1/3）与复核排序，**隔离语义不变：任何违规仍隔离**；
+3. 违规再按 **conf 单轴**分严重度：`conf ≥ T_FATAL_CONF(0.7)` = 致命（fatal），否则边缘（marginal）——阈值临时待校准，依据与重校准触发条件见 [qc-severity-calibration.md](qc-severity-calibration.md)。分级只影响退出码（1/3）、stderr 分列与复核排序，**隔离语义不变：任何违规仍隔离**；
 4. 违规清单的 `box` 字段为 `(x1, y1, x2, y2)` 左上/右下像素坐标——**非 xywh**。
 
 ### 6.3 抽样相位：BUG-010 的完整故事
@@ -381,11 +381,10 @@ real_video 全密度复检的完整取证链（每步都有独立证据，详见
 > ```bash
 > ./venv/bin/faceblur-lite qc out.mp4              # 1fps 抽检（日常）
 > ls outputs/<会话>/qc_failed/     # qc_failed 成品隔离区（复核后人工移出=转正）
-> # 全密度逐帧（最终验收）——全密度语义是 sample_fps=None，目前仅库接口可达：
-> ./venv/bin/python -c "from faceblur_lite.qc import qc_video; \
->   r = qc_video('out.mp4', sample_fps=None); print(r.passed, len(r.violations))"
+> # 全密度逐帧（最终验收）——全密度语义是 --sample-fps none：
+> ./venv/bin/faceblur-lite qc out.mp4 --sample-fps none
 > ```
-> 注意：CLI 的 `--sample-fps` 只接受正数（传 0 会在步长计算处除零）。代码：[qc.py](../src/faceblur_lite/qc.py)；回归：`tests/test_qc.py`
+> 注意：`--sample-fps` 接受 `"none"`/`"all"`（不区分大小写，全密度逐帧，最终验收）或正数 fps（传 0 会在步长计算处除零）。代码：[qc.py](../src/faceblur_lite/qc.py)；回归：`tests/test_qc.py`
 
 ---
 
