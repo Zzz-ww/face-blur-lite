@@ -214,7 +214,10 @@ class SqliteControlPlane:
             return [dict(r) for r in c.execute(
                 "SELECT * FROM videos ORDER BY created_at").fetchall()]
 
-    def finish_video(self, video_id: str, status: str) -> None:
+    def finish_video(self, video_id: str, status: str,
+                     output_path: str | None = None) -> None:
         with _connect(self.db_path) as c:
-            c.execute("UPDATE videos SET status=?, finished_at=? WHERE id=?",
-                      (status, time.time(), video_id))
+            c.execute(
+                "UPDATE videos SET status=?, finished_at=?, "
+                "output_path=COALESCE(?, output_path) WHERE id=?",
+                (status, time.time(), output_path, video_id))

@@ -139,3 +139,44 @@ def test_workdir_reuse_rejected(tmp_path, move_video):
     assert len(overview) == 1            # 拒绝轮未提交任何新视频
     # 不留痕契约：guard 先于日志器——拒绝轮不追加任何 run start
     assert log.read_text(encoding="utf-8").count("=== run start ===") == 1
+
+
+def test_pipeline_quarantine_on_qc_failed(tmp_path, move_video, capsys):
+    """qc ❌ → 成品移入 outdir/qc_failed/（spec 契约 1）五件套：
+    原位消失、隔离位存在、result 路径、DB 路径、log 事件+stderr 行。"""
+    out = str(tmp_path / "q.mp4")
+    res = run_pipeline(move_video[0], out, str(tmp_path / "wd"),
+                       workers=1, segment_s=3.0,
+                       params=KernelParams(det_every=2, det_conf=1.1))
+    assert res.status == "qc_failed"
+    quarantined = tmp_path / "qc_failed" / "q.mp4"
+    assert quarantined.is_file()
+    assert not Path(out).exists()
+    assert res.output_path == str(quarantined)
+    cp = SqliteControlPlane(str(tmp_path / "wd" / "pipeline.db"))
+    assert cp.get_video(res.video_id)["output_path"] == str(quarantined)
+    log = (tmp_path / "wd" / "pipeline.log").read_text(encoding="utf-8")
+    assert "quarantine video=" in log
+    assert "qc_result video=" in log
+    assert "已隔离 qc_failed/" in capsys.readouterr().err
+
+
+def test_quarantine_rename_failure_tolerated(tmp_path, move_video,
+                                             monkeypatch, capsys):
+    """spec 契约 4：隔离失败不砸批次——状态仍 qc_failed、log 记
+    quarantine_failed 事件、文件留原位（Worker 在子进程，不受父进程
+    monkeypatch 影响）。"""
+    def boom(self, target):
+        raise OSError("simulated rename failure")
+
+    monkeypatch.setattr("pathlib.Path.rename", boom)
+    out = str(tmp_path / "q2.mp4")
+    res = run_pipeline(move_video[0], out, str(tmp_path / "wd"),
+                       workers=1, segment_s=3.0,
+                       params=KernelParams(det_every=2, det_conf=1.1))
+    assert res.status == "qc_failed"
+    assert Path(out).is_file()                       # 留原位
+    assert not (tmp_path / "qc_failed" / "q2.mp4").exists()
+    log = (tmp_path / "wd" / "pipeline.log").read_text(encoding="utf-8")
+    assert "quarantine_failed video=" in log
+    assert "隔离失败" in capsys.readouterr().err

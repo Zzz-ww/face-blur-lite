@@ -75,5 +75,9 @@ class HttpControlPlane:
     def video_overview(self) -> list[dict]:
         return self._call("GET", "/videos")
 
-    def finish_video(self, video_id: str, status: str) -> None:
-        self._call("POST", f"/videos/{video_id}/finish", {"status": status})
+    def finish_video(self, video_id: str, status: str,
+                     output_path: str | None = None) -> None:
+        body = {"status": status}
+        if output_path is not None:
+            body["output_path"] = output_path
+        self._call("POST", f"/videos/{video_id}/finish", body)
