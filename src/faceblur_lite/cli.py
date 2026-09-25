@@ -85,12 +85,17 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "pipeline":
         from faceblur_lite.kernel import KernelParams
-        from faceblur_lite.orchestrator import run_batch
-        results = run_batch(
-            args.inputs, args.outdir, args.workdir,
-            workers=args.workers, segment_s=args.segment,
-            params=KernelParams(det_every=args.det_every),
-            cp_url=args.cp_url)
+        from faceblur_lite.orchestrator import (WorkdirReuseError,
+                                                run_batch)
+        try:
+            results = run_batch(
+                args.inputs, args.outdir, args.workdir,
+                workers=args.workers, segment_s=args.segment,
+                params=KernelParams(det_every=args.det_every),
+                cp_url=args.cp_url)
+        except WorkdirReuseError as e:      # BUG-017：输入错误类 → rc 2
+            print(f"workdir 复用被拒绝：{e}", file=sys.stderr)
+            return 2
         print(json.dumps([{
             "video_id": r.video_id, "status": r.status,
             "qc_passed": r.qc.passed if r.qc else None,
