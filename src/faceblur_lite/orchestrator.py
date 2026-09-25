@@ -47,11 +47,17 @@ def _fmt_dur(s: float) -> str:
 
 def _quarantine(out_path: str) -> str:
     """qc_failed 成品移入 outdir/qc_failed/（spec 2026-09-25：通过层
-    不留未验收件，转正=人工移出）。OSError 由调用侧容错。"""
+    不留未验收件，转正=人工移出）。同名已存在 → _1/_2… 递增——保住
+    上一轮复核证据（POSIX rename 静默覆盖=顺手件 4 收口）。
+    OSError 由调用侧容错。"""
     src = Path(out_path)
     dst_dir = src.parent / "qc_failed"
     dst_dir.mkdir(parents=True, exist_ok=True)
     dst = dst_dir / src.name
+    n = 1
+    while dst.exists():
+        dst = dst_dir / f"{src.stem}_{n}{src.suffix}"
+        n += 1
     src.rename(dst)
     return str(dst)
 

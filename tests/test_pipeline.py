@@ -180,3 +180,19 @@ def test_quarantine_rename_failure_tolerated(tmp_path, move_video,
     log = (tmp_path / "wd" / "pipeline.log").read_text(encoding="utf-8")
     assert "quarantine_failed video=" in log
     assert "隔离失败" in capsys.readouterr().err
+
+
+def test_quarantine_preserves_previous_evidence(tmp_path, move_video):
+    """顺手件 4：同名重跑再 ❌ 时隔离件 _1 递增——上一轮待复核证据
+    不被 POSIX rename 静默覆盖（隔离波 record-only 遗留收口）。"""
+    qdir = tmp_path / "qc_failed"
+    qdir.mkdir()
+    (qdir / "q3.mp4").write_bytes(b"prev-evidence")   # 上一轮遗留隔离件
+    out = str(tmp_path / "q3.mp4")
+    res = run_pipeline(move_video[0], out, str(tmp_path / "wd"),
+                       workers=1, segment_s=3.0,
+                       params=KernelParams(det_every=2, det_conf=1.1))
+    assert res.status == "qc_failed"
+    assert (qdir / "q3.mp4").read_bytes() == b"prev-evidence"  # 旧证据原样
+    assert (qdir / "q3_1.mp4").is_file()                       # 新件递增
+    assert res.output_path == str(qdir / "q3_1.mp4")
