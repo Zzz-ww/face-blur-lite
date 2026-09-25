@@ -267,12 +267,26 @@ cmd_run() {
     echo "── single 模式（$n 个输入，串行）──"
     for p in "${INPUTS[@]}"; do
       out="$OUTDIR/$(stem_of "$p")_blurred.mp4"
-      local tmp err info
+      local tmp err info HB
       tmp=$(mktemp)
       err=$(mktemp)
       set +e
+      # 心跳（BUG-015 加重因素）：single 静默跑长视频像卡死，每 15s 报已写出量。
+      # 等待须可中断：sleep 放后台再 wait——bash 在 wait 期间响应 trap，kill 即刻
+      # 生效（前台 sleep 15 会把 trap 推迟到 sleep 结束，捕获式调用白吃 15s 死尾）。
+      # 存活检查感知僵尸：kill -0 对未收殓僵尸恒真，STAT 含 Z 视为死亡，防调用方
+      # 不收殓时心跳永转、持住 stdout 管道不 EOF。trap TERM 自愿退出不打作业噪声。
+      ( trap 'kill ${sp:-} 2>/dev/null || true; exit 0' TERM
+        while kill -0 $$ 2>/dev/null && ! ps -o stat= -p $$ 2>/dev/null | grep -q Z; do
+          sleep 15 & sp=$!
+          wait $sp || true
+          printf '  ⏳ 处理中：%s 已写出 %d MB\n' "$(basename "$out")" \
+            "$(( ($(stat -f%z "$out" 2>/dev/null || echo 0) + 1048575) / 1048576 ))"
+        done ) &
+      HB=$!
       "$FACEBLUR" single "$p" "$out" >"$tmp" 2>"$err"
       rc=$?
+      kill "$HB" 2>/dev/null || true
       set -e
       if [ "$rc" -eq 0 ]; then
         info=$("$PY" -c 'import json,sys;d=json.load(open(sys.argv[1]));print("{} 帧，检测 {} 次，track {} 个，耗时 {:.1f}s".format(d["frames"],d["detections"],d["track_count"],d["wall_s"]))' "$tmp")

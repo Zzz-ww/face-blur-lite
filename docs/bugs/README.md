@@ -18,6 +18,7 @@ SDD（subagent-driven development）执行期发现并修复的 bug，一 bug �
 | [012](012-small-face-margin-pixel-floor.md) | 真实视频 qc | 小脸比例 margin 仅 2-4px 盖不住检测框抖动 → 脸缘裸露（加 margin_px 像素下限） | 已修复 |
 | [013](013-low-conf-no-birth-naked-run.md) | 真实视频 qc | 低分（0.3-0.5）不出生 → 持续低置信度人脸长段裸奔（检测框并入糊区） | 已修复 |
 | [014](014-tiny-face-capability-envelope.md) | 真实视频 qc | 残余=YuNet 16-32px 小脸能力包络；检测放大能力位落地（默认关，实测本视频不划算） | 能力位落地 |
+| [015](015-big-face-kernel-cost.md) | celebv 特写首跑 | 大脸（440-530px）比例核 k≈450 成本 O(k×像素) 爆炸（~2.1s/帧）+ single 静默假死 → 降采样快路径（σ 等效，116s，≈9×）+ 心跳 | 已修复 |
 
 环境类问题（非代码 bug）见 [env-notes.md](env-notes.md)。
 

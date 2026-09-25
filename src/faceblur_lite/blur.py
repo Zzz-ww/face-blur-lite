@@ -4,6 +4,12 @@ from __future__ import annotations
 import cv2
 import numpy as np
 
+# 直接高斯的核上限：超过走"降采样→小核→放回"快路径。BUG-015：比例核
+# 无上限，440px 特写大脸 k≈450、成本 O(k×像素) 爆炸（20s 片 ~2.1s/帧）；
+# 快路径 σ 视觉等效——糊核仍占小图短边 75%（比例不变，实测
+# σ_eff/σ_direct∈[0.995,1.01]，偏差有界且远小于验收带），成本 O(像素)。
+_MAX_DIRECT_K = 201
+
 
 def expand_box(box: np.ndarray, frame_w: int, frame_h: int,
                margin: float = 0.15,
@@ -38,5 +44,16 @@ def blur_regions(frame: np.ndarray, boxes: list[np.ndarray],
         # 奇数核；比例 0.75：σ 须与人脸低频结构尺度相当，否则 std 验收不降
         # （2026-09-24 执行期调参，原 0.15 只抹高频细节）
         k = max(3, int(min(crop.shape[:2]) * 0.75) // 2 * 2 + 1)
-        out[y1:y2, x1:x2] = cv2.GaussianBlur(crop, (k, k), 0)
+        if k <= _MAX_DIRECT_K:
+            out[y1:y2, x1:x2] = cv2.GaussianBlur(crop, (k, k), 0)
+        else:
+            # 大核快路径（BUG-015）：降采样到短边 ≈ _MAX_DIRECT_K/0.75（268px）
+            # 后按同比例糊小图再放回，σ_eff≈σ_target，成本 O(像素)
+            f = min(crop.shape[:2]) / (_MAX_DIRECT_K / 0.75)
+            small = cv2.resize(crop, None, fx=1.0 / f, fy=1.0 / f,
+                               interpolation=cv2.INTER_AREA)
+            ks = max(3, int(min(small.shape[:2]) * 0.75) // 2 * 2 + 1)
+            out[y1:y2, x1:x2] = cv2.resize(
+                cv2.GaussianBlur(small, (ks, ks), 0),
+                (x2 - x1, y2 - y1), interpolation=cv2.INTER_LINEAR)
     return out
