@@ -45,6 +45,17 @@ def _fmt_dur(s: float) -> str:
     return f"{int(s // 60)}m{int(s % 60):02d}s" if s >= 60 else f"{int(s)}s"
 
 
+def _quarantine(out_path: str) -> str:
+    """qc_failed 成品移入 outdir/qc_failed/（spec 2026-09-25：通过层
+    不留未验收件，转正=人工移出）。OSError 由调用侧容错。"""
+    src = Path(out_path)
+    dst_dir = src.parent / "qc_failed"
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    dst = dst_dir / src.name
+    src.rename(dst)
+    return str(dst)
+
+
 def _prog_db_path(workdir: str, cp_url: str | None) -> str | None:
     """快照库选择（与 blur.sh report_pipeline 同规则）：--go 且 workdir
     下有 gocp.db → 它；sqlite 模式 → pipeline.db；否则 None（仅 L1 事件）。"""
@@ -173,15 +184,32 @@ def _orchestrate(specs: list[tuple[str, str]], workdir: str,
             prog.line(f"qc {stem} …")
             rep = qc_video(video["output_path"], sample_fps=qc_sample_fps)
             status = "done" if rep.passed else "qc_failed"
-            cp.finish_video(vid, status)
+            final_path = video["output_path"]
+            suffix = ""
+            q_err: str | None = None
+            if not rep.passed:
+                try:
+                    final_path = _quarantine(final_path)
+                    suffix = " → 已隔离 qc_failed/"
+                except OSError as e:    # 隔离失败不砸批次——缺陷可见
+                    q_err = str(e)
+                    suffix = f" —— 隔离失败（{type(e).__name__}），文件留原位"
+            cp.finish_video(vid, status, output_path=final_path)
             prog.event("qc_result", video=vid, sampled=rep.sampled_frames,
                        violations=len(rep.violations))
+            if not rep.passed:
+                if q_err is None:
+                    prog.event("quarantine", video=vid,
+                               to=Path(final_path).name)
+                else:
+                    prog.event("quarantine_failed", video=vid, error=q_err)
             prog.line(f"qc {stem} {'✅' if rep.passed else '❌'} "
-                      f"{len(rep.violations)} 违规（抽 {rep.sampled_frames} 帧）")
+                      f"{len(rep.violations)} 违规（抽 {rep.sampled_frames} 帧）"
+                      f"{suffix}")
             n_done += rep.passed
             n_qcf += not rep.passed
             results.append(PipelineResult(
-                vid, video["input_path"], video["output_path"],
+                vid, video["input_path"], final_path,
                 status, rep, wall, nchunks))
         else:   # failed / Worker 池退出时仍未完成（如回收发生在退出边缘）
             err = video["error"] or "Worker 池退出时任务未到 qc_wait"
