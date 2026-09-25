@@ -162,6 +162,9 @@ report_pipeline() {  # $1=workdir；$2=GO 标志（非空=--go 模式优先 gocp
   else
     echo "（无 pipeline.db——批前提交即失败）"
   fi
+  if [ -f "$1/pipeline.log" ]; then
+    echo "详细日志：$1/pipeline.log"
+  fi
   echo ""
   echo "── 输出质检 ──"
   local p
