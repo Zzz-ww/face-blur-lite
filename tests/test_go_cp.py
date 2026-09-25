@@ -13,7 +13,8 @@ def test_http_adapter_satisfies_protocol(go_cp_url):
     vid = cp.submit_video("in.mp4", "out.mp4", [(0, "c0.mp4", "o0.mp4")])
     t = cp.claim_chunk("w1", 60)
     assert t is not None and t["video_id"] == vid
-    assert cp.complete_chunk(t["id"], {}) is True   # 单 chunk：完成即认领 merge
+    assert cp.complete_chunk(t["id"], {}, worker_id="w1",
+                             attempt=t["attempt"]) is True   # 单 chunk：完成即认领 merge
     cp.complete_merge(vid, "out.mp4")
     assert cp.get_video(vid)["status"] == "qc_wait"
 
@@ -42,3 +43,22 @@ def test_go_control_plane_reuse_exempt(go_cp_url, move_video, tmp_path):
     assert r1.status == "done" and r2.status == "done"
     vids = HttpControlPlane(go_cp_url).video_overview()
     assert len(vids) == 2            # 库即队列：两轮累积而非拒绝
+
+
+def test_gocp_rejects_unfenced_write(go_cp_url):
+    """契约 v1.2：缺 worker_id/attempt 的 complete/fail POST → 400——
+    防新旧二进制混跑时围栏静默失效（旧客户端字段缺失必须显式炸）。"""
+    import json as _json
+    from urllib.error import HTTPError
+    from urllib.request import Request, urlopen
+
+    for path, body in [("/chunks/x/complete", {"metrics": {}}),
+                       ("/chunks/x/fail", {"error": "e"})]:
+        req = Request(go_cp_url + path, method="POST",
+                      data=_json.dumps(body).encode(),
+                      headers={"Content-Type": "application/json"})
+        try:
+            urlopen(req)
+            raise AssertionError(f"{path} 缺围栏字段应 400")
+        except HTTPError as e:
+            assert e.code == 400

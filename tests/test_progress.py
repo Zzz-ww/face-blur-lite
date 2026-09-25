@@ -102,8 +102,10 @@ def test_snapshot_roundtrip(tmp_path):
                            (2, "in/c2", "out/o2")])
     c0 = cp.claim_chunk("w0", 900)
     c1 = cp.claim_chunk("w0", 900)
-    cp.complete_chunk(c0["id"], {"ms": 100})
-    cp.fail_chunk(c1["id"], "boom")            # attempt 0→1 回 pending
+    cp.complete_chunk(c0["id"], {"ms": 100},
+                      worker_id="w0", attempt=c0["attempt"])
+    cp.fail_chunk(c1["id"], "boom",
+                  worker_id="w0", attempt=c1["attempt"])  # attempt 0→1 回 pending
     snap = progress_snapshot(str(tmp_path / "p.db"))
     assert snap is not None
     videos, chunks = snap
