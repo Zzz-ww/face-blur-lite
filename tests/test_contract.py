@@ -121,3 +121,13 @@ def test_missing_chunk_id_semantics(cp):
     cp.fail_chunk("no-such-id", "x", max_attempts=3)   # 静默 no-op，不抛
     t = cp.claim_chunk("w1", 60)
     assert t is not None                          # 缺 id 调用不产生副作用
+
+
+def test_finish_video_output_path_sync(cp):
+    """qc_failed 隔离（spec 2026-09-25 §3.1）：finish_video 可选改写
+    output_path，缺省不动——sqlite/go 两控制面一致。"""
+    vid = _mk(cp, n=1)
+    cp.finish_video(vid, "qc_failed", output_path="out/qc_failed/o.mp4")
+    assert cp.get_video(vid)["output_path"] == "out/qc_failed/o.mp4"
+    cp.finish_video(vid, "qc_failed")          # 缺省=不动
+    assert cp.get_video(vid)["output_path"] == "out/qc_failed/o.mp4"

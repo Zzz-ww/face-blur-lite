@@ -464,12 +464,14 @@ func handleMergeComplete(w http.ResponseWriter, r *http.Request) {
 
 func handleFinish(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Status string `json:"status"`
+		Status     string  `json:"status"`
+		OutputPath *string `json:"output_path"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&req)
 	if _, err := db.Exec(
-		"UPDATE videos SET status=?, finished_at=? WHERE id=?",
-		req.Status, nowF(), r.PathValue("id")); err != nil {
+		"UPDATE videos SET status=?, finished_at=?, "+
+			"output_path=COALESCE(?, output_path) WHERE id=?",
+		req.Status, nowF(), req.OutputPath, r.PathValue("id")); err != nil {
 		writeErr(w, 500, err.Error())
 		return
 	}
