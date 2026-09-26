@@ -178,7 +178,7 @@ flowchart TD
 
 ### 3.1 模型与推理成本
 
-- **模型**：opencv_zoo YuNet 2023-03 版 ONNX，实测 232,589 B（约 230KB），CPU 友好。部署在 `models/`（gitignore，由 `download_assets.sh` 下载）；`FACEBLUR_MODEL` 环境变量可覆盖路径。藏在 `Detector` 协议后（R5），SCRFD 是预留升级位（§8 模型级）。
+- **模型**：opencv_zoo YuNet 2023-03 版 ONNX，实测 232,589 B（约 230KB），CPU 友好。部署在 `models/`（gitignore，由 `download_assets.sh` 下载）；`FACEBLUR_MODEL` 环境变量可覆盖路径。藏在 `Detector` 协议后（R5）；SCRFD 档已落地（§3.5，opt-in）。
 - **成本实测**（720×1406，本机）：`upscale=1×` **52ms/帧**、`1.5×` 131ms、`2×` 226ms——推理耗时约随线性放大倍率的**平方**增长。
 
 ### 3.2 隔帧检测：det_every=3
@@ -196,7 +196,7 @@ flowchart TD
 | 无人脸帧 | 返回空列表，正常流转（§4 无 update 输入，§5 无框可糊） |
 | `detect` 返回 None（OpenCV 无检出接口语义） | 归一为空列表 |
 | 置信度塌落 0.3–0.5（遮挡/侧脸/域移） | 源域阈值 `det_conf=0.3` 尽量收下（宁可多糊）；低分框进 §4 二轮救活池 + §5 并集糊（BUG-013） |
-| 极小脸 <32px | **检不出是能力边界，不是管线 bug**（BUG-014 探针实测）；缓解=upscale（40–50px 档）或换 SCRFD |
+| 极小脸 <32px | **检不出是能力边界，不是管线 bug**（BUG-014 探针实测）；缓解=upscale（40–50px 档）或 `--detector scrfd`（§3.5，32px 起检出） |
 | 模型文件缺失 | 启动即 `FileNotFoundError`，提示 download_assets.sh / FACEBLUR_MODEL |
 
 > **▸ 实操入口**
@@ -204,6 +204,30 @@ flowchart TD
 > ./venv/bin/faceblur-lite single in.mp4 out.mp4 --det-every 1 --det-conf 0.3
 > ```
 > 代码：[detector.py](../src/faceblur_lite/detector.py)（`YuNetDetector`/`Det`/`Detector` 协议）；回归：`tests/test_detector.py`
+
+### 3.5 SCRFD 档（--detector scrfd，spec 2026-09-26）
+
+letterbox 链路（与 YuNet 的 setInputSize 全分辨率直喂不同）：
+
+```
+原图 720×1406 ──scale 0.455──▶ 内容带 328×640 ──pad 156 左右──▶ 画布 640×640
+                              ──(x-127.5)/128──▶ blob ──cv2.dnn──▶ 9 张量
+[l,t,r,b]×stride 中心式解码（两坑：dist×stride、anchor 逐位置交错）──
+NMS──▶ 框坐标 (canvas-pad)/scale 映射回原图
+```
+
+| | YuNet（默认） | SCRFD |
+|---|---|---|
+| 输入 | 全分辨率 setInputSize | letterbox 640 |
+| 前向@640×640 | 12.7ms | 15.5ms |
+| 小脸包络 | 48px（2× 放大救） | 32px 起检出（0.374；16/24px 仍盲） |
+| upscale 旋钮 | 有（默认关） | 无（能力原生） |
+| qc 角色 | --qc-detector yunet 交叉位 | 跟随 --detector |
+
+A/B 同闸门**未胜出**（B 臂 SCRFD 双坐 vs A 臂 YuNet 内核+SCRFD 闸门，同 conf 0.3：
+det3 +69.7% / det1-px8 +80.3%——SCRFD 同数值 conf 出框仅 YuNet 约 1/3，344 vs 1049）。
+定位=opt-in 换档位（包络下探 32px）而非翻默认；数字与根因见
+[BUG-014 附录](bugs/014-tiny-face-capability-envelope.md)。
 
 ---
 
@@ -256,7 +280,7 @@ flowchart TD
 | **快运动**（≥1 框宽/检测轮） | IoU 归零 | 三轮距离兜底 + 速度自举（上节） |
 | **遮挡**（手臂挡脸、转头） | 检测置信度塌落或消失 | 低分二轮救活 + max_age=3 检测轮（@det3 = 9 帧）外推维持，超时剪枝 |
 | **出画**（人脸离开画面） | 恒速外推无界 | predict() 后**完全出画 track 立即剪除**（BUG-009；否则 segments 虚假延长 ~9 帧）；半出画保留（画内还有脸） |
-| **高密度小脸** | 距离兜底互相串位 | 已知边界：放大 2× 实验中检出 1049→1550 但 track 88→188、框被邻脸拖走、违规反升（BUG-014）；根治=更强的逐帧关联或 SCRFD（开放项） |
+| **高密度小脸** | 距离兜底互相串位 | 已知边界：放大 2× 实验中检出 1049→1550 但 track 88→188、框被邻脸拖走、违规反升（BUG-014）；根治=更强的逐帧关联/SCRFD 调参（开放项，A/B 未胜出） |
 | **ghost 轨迹** | 预测框无匹配存活 | max_age 剪枝；track 永不无限期存活 |
 
 > **▸ 实操入口**
@@ -366,7 +390,7 @@ real_video 全密度复检的完整取证链（每步都有独立证据，详见
 | **默认配置** det3+px8+并集 | 492（23.2%） | 54s——速度/覆盖的折中（用户决策：保 det3） |
 | + 检测放大 2×（BUG-014） | 549 | 反直觉恶化：高密度小脸串位（dets 1049→1550，tracks 88→188） |
 
-**残余定性**（探针实测）：16–32px 小脸超出 YuNet 能力包络（1×、2× 均检不出）+ 域移（源域 <0.3 而输出域 ≥0.5）。结论：这是检测器能力边界，不是管线缺陷；根治 = SCRFD 升级（协议已留位）。取证方法：对违规框在**源域**深检（同一张脸源域是否检出、IoU 多少）+ 比较违规区域与邻域的纹理方差（std 比值）区分已糊/半糊/未糊——把"漏糊"拆成未出生/半糊/能力外三种可命名的原因。
+**残余定性**（探针实测）：16–32px 小脸超出 YuNet 能力包络（1×、2× 均检不出）+ 域移（源域 <0.3 而输出域 ≥0.5）。结论：这是检测器能力边界，不是管线缺陷；SCRFD 档已落地（§3.5，包络下探 32px）但 A/B 未胜出，待调参/关联改进。取证方法：对违规框在**源域**深检（同一张脸源域是否检出、IoU 多少）+ 比较违规区域与邻域的纹理方差（std 比值）区分已糊/半糊/未糊——把"漏糊"拆成未出生/半糊/能力外三种可命名的原因。
 
 ### 6.5 就地异常
 
@@ -494,7 +518,7 @@ stateDiagram-v2
 | **模型级**（§3-4） | 置信度塌落 0.3–0.5 | 遮挡/侧脸 | 低分救活 + 并集糊 | tracker 二轮 / kernel（BUG-013） |
 | | 遮挡 | 检测消失 | max_age=3 轮外推维持 | tracker `misses` |
 | | 快运动 | IoU 归零、track 重生 | 距离兜底 + 速度自举 | tracker 三轮（BUG-011） |
-| | 小脸 16–32px | 检不出（能力包络） | upscale 只救 40–50px 档；根治 SCRFD | detector（BUG-014） |
+| | 小脸 16–32px | 检不出（能力包络） | upscale 只救 40–50px 档；SCRFD 档 32px 起检出（§3.5，16/24px 仍盲） | detector（BUG-014） |
 | | 人脸出画 | 外推无界曾致崩溃 | 出画剪枝 + expand None 双保险 | tracker/blur（BUG-009） |
 | **批量级**（§7） | 坏输入视频 | 提交即失败 | 该视频 failed，批次继续 | orchestrator 失败隔离 |
 | | chunk 失败/Worker 死亡 | 执行异常 / kill -9 | 第 1、2 次失败重派（attempt+1<3），第 3 次终态 failed；lease 900s 回收 | state `fail_chunk`/`reclaim_expired` |
