@@ -24,6 +24,8 @@ run 选项：
   --workers N     Worker 数，默认 2（仅 pipeline 模式）
   --segment S     切片秒数，默认 30（仅 pipeline 模式）
   --mode M        auto（默认）| single | pipeline
+  --detector D    检测器：yunet（默认）| scrfd（需 models/det_500m.onnx，scripts/download_assets.sh）
+  --qc-detector D  qc 复检检测器；缺省跟随 --detector（交叉验收位，spec 2026-09-26）
   --go            gocp 控制面模式（隐含 pipeline；需 go 工具链）
 demo 选项：
   --outdir DIR    默认 outputs/demo
@@ -128,7 +130,7 @@ check_collisions() {
 }
 
 # ---------- 聚合报告（spec §4：qc 统一透传 qc 子命令，shell 不解析管线 JSON） ----------
-QC_BAD=0 QC_FATAL=0 QC_MARGINAL=0
+QC_BAD=0 QC_FATAL=0 QC_MARGINAL=0 QC_DET=yunet
 
 qc_one() {  # $1=输出文件
   local f="$1" tmp rc summary sampled viol fatal qd base stem ext tgt n
@@ -139,7 +141,7 @@ qc_one() {  # $1=输出文件
   fi
   tmp=$(mktemp)
   set +e
-  "$FACEBLUR" qc "$f" >"$tmp" 2>/dev/null
+  "$FACEBLUR" qc "$f" --detector "$QC_DET" >"$tmp" 2>/dev/null
   rc=$?
   set -e
   summary=$("$PY" -c 'import json,sys;d=json.load(open(sys.argv[1]));print(d["sampled"],len(d["violations"]),d.get("fatal",0))' "$tmp")
@@ -235,7 +237,7 @@ start_gocp() {  # $1=workdir；就绪后设置全局 GO_URL（勿用 $() 调用�
 
 # ---------- run ----------
 cmd_run() {
-  local OUTDIR=outputs WORKERS=2 SEGMENT=30 MODE=auto GO=""
+  local OUTDIR=outputs WORKERS=2 SEGMENT=30 MODE=auto GO="" DET=yunet QC_DET=""
   local W_SET="" S_SET="" raw=()
   while [ $# -gt 0 ]; do
     case "$1" in
@@ -243,6 +245,8 @@ cmd_run() {
       --workers) [ $# -ge 2 ] && [ -n "$2" ] || die2 "--workers 需要一个非空值"; WORKERS=$2; W_SET=1; shift 2 ;;
       --segment) [ $# -ge 2 ] && [ -n "$2" ] || die2 "--segment 需要一个非空值"; SEGMENT=$2; S_SET=1; shift 2 ;;
       --mode)    [ $# -ge 2 ] && [ -n "$2" ] || die2 "--mode 需要一个非空值"; MODE=$2;    shift 2 ;;
+      --detector)    [ $# -ge 2 ] && [ -n "$2" ] || die2 "--detector 需要一个非空值"; DET=$2;    shift 2 ;;
+      --qc-detector) [ $# -ge 2 ] && [ -n "$2" ] || die2 "--qc-detector 需要一个非空值"; QC_DET=$2; shift 2 ;;
       --go)      GO=1;       shift ;;
       -h|--help) usage; return 0 ;;
       --*) die2 "未知选项：$1" ;;
@@ -254,6 +258,8 @@ cmd_run() {
     auto|single|pipeline) ;;
     *) die2 "--mode 仅支持 auto|single|pipeline" ;;
   esac
+  case "$DET" in yunet|scrfd) ;; *) die2 "--detector 仅支持 yunet|scrfd" ;; esac
+  QC_DET=${QC_DET:-$DET}      # 缺省跟随 --detector（与 CLI pipeline 同语义）
   if [ -n "$GO" ] && [ "$MODE" = "single" ]; then
     die2 "--go 与 --mode single 矛盾（--go 隐含 pipeline）"
   fi
@@ -282,10 +288,12 @@ cmd_run() {
     set +e
     if [ -n "$GO_URL" ]; then
       "$FACEBLUR" pipeline "${INPUTS[@]}" --outdir "$OUTDIR" \
+        --detector "$DET" --qc-detector "$QC_DET" \
         --workdir "$WORKDIR" --workers "$WORKERS" --segment "$SEGMENT" \
         --cp-url "$GO_URL"
     else
       "$FACEBLUR" pipeline "${INPUTS[@]}" --outdir "$OUTDIR" \
+        --detector "$DET" --qc-detector "$QC_DET" \
         --workdir "$WORKDIR" --workers "$WORKERS" --segment "$SEGMENT"
     fi
     rc=$?
@@ -322,7 +330,7 @@ cmd_run() {
             "$(( ($(stat -f%z "$out" 2>/dev/null || echo 0) + 1048575) / 1048576 ))"
         done ) &
       HB=$!
-      "$FACEBLUR" single "$p" "$out" >"$tmp" 2>"$err"
+      "$FACEBLUR" single "$p" "$out" --detector "$DET" >"$tmp" 2>"$err"
       rc=$?
       kill "$HB" 2>/dev/null || true
       set -e
