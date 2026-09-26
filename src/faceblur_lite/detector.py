@@ -70,3 +70,58 @@ class YuNetDetector:
                             float(f[2]) * s, float(f[3]) * s)
             out.append(Det(x, y, x + bw, y + bh, float(f[-1])))
         return out
+
+
+def letterbox_shape(h: int, w: int, size: int = 640
+                    ) -> tuple[float, int, int, int, int]:
+    """letterbox 几何（SCRFD，spec 2026-09-26 §1）：长边缩到 size、
+    短边居中 pad。返回 (scale, new_h, new_w, pad_top, pad_left)。"""
+    scale = size / max(h, w)
+    nh = max(1, int(round(h * scale)))
+    nw = max(1, int(round(w * scale)))
+    return scale, nh, nw, (size - nh) // 2, (size - nw) // 2
+
+
+def _decode_scrfd(outputs, conf_thr: float, top_k: int,
+                  scale: float, pad_top: int, pad_left: int) -> list[Det]:
+    """SCRFD buffalo 系 9 张量解码（spike 踩明两坑，docs/bugs/014 附录）：
+    输出序 [score×3, dist-bbox×3, kps×3] × strides(8,16,32)，2 锚/cell；
+    kps 丢弃（Det 不带关键点）。坐标逆映射回原图：(canvas - pad)/scale。"""
+    strides = (8, 16, 32)
+    scores = [np.asarray(o).reshape(-1) for o in outputs[0:3]]
+    dists = [np.asarray(o).reshape(-1, 4) for o in outputs[3:6]]
+    boxes_all, scores_all = [], []
+    for i, s in enumerate(strides):
+        n = scores[i].shape[0]
+        feat = int(round((n / 2) ** 0.5))
+        ys, xs = np.meshgrid(np.arange(feat), np.arange(feat),
+                             indexing="ij")
+        centers = np.stack([(xs + 0.5) * s, (ys + 0.5) * s],
+                           axis=-1).reshape(-1, 2)
+        centers = np.repeat(centers, 2, axis=0)   # 坑 2：逐位置交错
+        keep = scores[i] >= conf_thr
+        if not keep.any():
+            continue
+        d = dists[i][keep] * s                    # 坑 1：dist × stride
+        c = centers[keep]
+        boxes_all.append(np.stack(
+            [c[:, 0] - d[:, 0], c[:, 1] - d[:, 1],
+             c[:, 0] + d[:, 2], c[:, 1] + d[:, 3]], axis=1))
+        scores_all.append(scores[i][keep])
+    if not boxes_all:
+        return []
+    boxes = np.concatenate(boxes_all)
+    scs = np.concatenate(scores_all)
+    xywh = np.stack([boxes[:, 0], boxes[:, 1],
+                     boxes[:, 2] - boxes[:, 0], boxes[:, 3] - boxes[:, 1]],
+                    axis=1)
+    keep_idx = np.array(cv2.dnn.NMSBoxes(
+        xywh.tolist(), scs.tolist(), conf_thr, 0.4)).reshape(-1)
+    order = keep_idx[np.argsort(scs[keep_idx])[::-1]][:top_k]
+    out = []
+    for j in order:
+        x1, y1, x2, y2 = boxes[j]
+        out.append(Det((x1 - pad_left) / scale, (y1 - pad_top) / scale,
+                       (x2 - pad_left) / scale, (y2 - pad_top) / scale,
+                       float(scs[j])))
+    return out
