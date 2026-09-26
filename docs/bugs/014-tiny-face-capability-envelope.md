@@ -65,3 +65,15 @@ det_10g 的 cv2 输出经临时 onnxruntime 1.23.2 交叉验证逐位一致
 
 **网络**：huggingface.co 大陆直连超时；hf-mirror.com 可用但慢（~15KB/s），
 `curl -C -` 断点续传是关键。模型已入 models/（gitignore，不入库）。
+
+**A/B 同闸门结果（2026-09-26，spec §6）**：A 臂（YuNet 内核+SCRFD 闸门）
+det3=109 / det1-px8=66（历史 YuNet 闸门 492/308，差值=闸门灵敏度变化）；
+B 臂（SCRFD 双坐）最优 conf 分档：det3=c0.4=177 / det1-px8=c0.5=99，wall
+36.1s / 68.9s。判定【未胜出】（判据：降 ≥30% 且 wall 劣化 ≤10%——同配置
+同 conf 0.3 实测 det3 +69.7%、det1-px8 +80.3%，违规不降反升；根因方向 =
+SCRFD 同数值 conf 出框仅 YuNet 约 1/3（det3 344 vs 1049），且 0.3–0.5 档
+内不回收）。16-32px 残余带【部分检出】（探针复测：32px conf 0.374、48px
+0.736 均检出——YuNet 1× 盲；16/24px 仍盲）。绿灯回归：4 样本【2 转红】
+（musicfest 12 边缘、street 20 致命+171 边缘；YuNet 交叉参考列同红且更重 =
+内核欠糊而非闸门放大；celebv_sample1/celebv_5min 主闸门绿，后者交叉参考
+8 处边缘为已知良性残块模式，转红不否决）。
