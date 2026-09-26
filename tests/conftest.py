@@ -22,6 +22,15 @@ requires_assets = pytest.mark.skipif(
     not assets_ready(), reason="需要 ffmpeg 与下载资产（scripts/download_assets.sh）")
 
 
+def scrfd_ready() -> bool:
+    return assets_ready() and (ROOT / "models" / "det_500m.onnx").exists()
+
+
+requires_scrfd = pytest.mark.skipif(
+    not scrfd_ready(),
+    reason="另需 SCRFD 模型 models/det_500m.onnx（scripts/download_assets.sh）")
+
+
 @pytest.fixture(scope="session")
 def face_img():
     return load_face(str(ROOT / "assets" / "lena.jpg"))

@@ -13,15 +13,25 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_MODEL = PROJECT_ROOT / "models" / "face_detection_yunet_2023mar.onnx"
 
 
-def resolve_model_path() -> str:
-    env = os.environ.get("FACEBLUR_MODEL")
+def resolve_model_path(kind: str = "yunet") -> str:
+    """模型路径分家（spec 2026-09-26 §2）：yunet→FACEBLUR_MODEL，
+    scrfd→FACEBLUR_SCRFD_MODEL；各自回落 models/ 下默认件。"""
+    if kind == "yunet":
+        env = os.environ.get("FACEBLUR_MODEL")
+        default = DEFAULT_MODEL
+    elif kind == "scrfd":
+        env = os.environ.get("FACEBLUR_SCRFD_MODEL")
+        default = PROJECT_ROOT / "models" / "det_500m.onnx"
+    else:
+        raise ValueError(f"未知检测器 kind：{kind}（yunet|scrfd）")
     if env:
         return env
-    if DEFAULT_MODEL.exists():
-        return str(DEFAULT_MODEL)
+    if default.exists():
+        return str(default)
     raise FileNotFoundError(
-        f"未找到模型 {DEFAULT_MODEL}；先运行 scripts/download_assets.sh"
-        " 或设置 FACEBLUR_MODEL")
+        f"未找到 {kind} 模型 {default}；先运行 scripts/download_assets.sh"
+        f" 或设置 "
+        f"{'FACEBLUR_SCRFD_MODEL' if kind == 'scrfd' else 'FACEBLUR_MODEL'}")
 
 
 @dataclass(frozen=True)
@@ -117,6 +127,9 @@ def _decode_scrfd(outputs, conf_thr: float, top_k: int,
                     axis=1)
     keep_idx = np.array(cv2.dnn.NMSBoxes(
         xywh.tolist(), scs.tolist(), conf_thr, 0.4)).reshape(-1)
+    # NMSBoxes 用 strict > 过滤（numpy 门是 >=）——全恰等时返回空，勿让 float64 空数组走到索引
+    if keep_idx.size == 0:
+        return []
     order = keep_idx[np.argsort(scs[keep_idx])[::-1]][:top_k]
     out = []
     for j in order:
@@ -125,3 +138,47 @@ def _decode_scrfd(outputs, conf_thr: float, top_k: int,
                        (x2 - pad_left) / scale, (y2 - pad_top) / scale,
                        float(scs[j])))
     return out
+
+
+class SCRFDDetector:
+    """insightface buffalo_s det_500m（SCRFD，2.5MB——spike 见 docs/bugs/014
+    附录）。letterbox 640：长边缩到 640、pad 到 640×640（720×1406 → 内容带
+    328×640）。预处理常数 (x-127.5)/128 与输出张量序均为 spike 验证值。
+    无 upscale——SCRFD 小脸能力即升级目的，该旋钮 YuNet 专属。"""
+
+    STRIDES = (8, 16, 32)
+    INPUT_SIZE = 640
+
+    def __init__(self, model_path: str | None = None, conf_thr: float = 0.3,
+                 top_k: int = 50):
+        path = model_path or resolve_model_path("scrfd")
+        self.conf_thr, self.top_k = conf_thr, top_k
+        self._net = cv2.dnn.readNetFromONNX(str(path))
+
+    def detect(self, frame_bgr: np.ndarray) -> list[Det]:
+        h, w = frame_bgr.shape[:2]
+        scale, nh, nw, pt, pl = letterbox_shape(h, w, self.INPUT_SIZE)
+        canvas = np.full((self.INPUT_SIZE, self.INPUT_SIZE, 3), 114,
+                         np.uint8)
+        canvas[pt:pt + nh, pl:pl + nw] = cv2.resize(
+            frame_bgr, (nw, nh), interpolation=cv2.INTER_LINEAR)
+        blob = cv2.dnn.blobFromImage(
+            canvas, 1.0 / 128.0, (self.INPUT_SIZE, self.INPUT_SIZE),
+            (127.5, 127.5, 127.5), swapRB=False)
+        self._net.setInput(blob)
+        outs = self._net.forward(self._net.getUnconnectedOutLayersNames())
+        return _decode_scrfd(outs, self.conf_thr, self.top_k,
+                             scale, pt, pl)
+
+
+def make_detector(kind: str, model_path: str | None = None, *,
+                  conf_thr: float = 0.3, top_k: int = 50,
+                  upscale: float = 1.0) -> Detector:
+    """检测器工厂（spec 2026-09-26 §2）。scrfd 忽略 upscale（其小脸能力
+    即升级目的，放大旋钮 YuNet 专属）；未知 kind 抛 ValueError。"""
+    if kind == "yunet":
+        return YuNetDetector(model_path, conf_thr=conf_thr, top_k=top_k,
+                             upscale=upscale)
+    if kind == "scrfd":
+        return SCRFDDetector(model_path, conf_thr=conf_thr, top_k=top_k)
+    raise ValueError(f"未知检测器 kind：{kind}（yunet|scrfd）")

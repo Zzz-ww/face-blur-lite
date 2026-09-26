@@ -81,3 +81,12 @@ def test_decode_nms_and_top_k():
 def test_decode_empty_when_no_score_above_thr():
     outs = _mk_outputs()
     assert _decode_scrfd(outs, 0.5, 50, 1.0, 0, 0) == []
+
+
+def test_decode_all_scores_exactly_at_threshold_returns_empty():
+    """NMSBoxes 边界（Task 1 评审 Minor-1）：全部过阈分数恰等于 conf_thr
+    时 NMSBoxes 返回空元组——不得 IndexError，应安静返回 []。"""
+    outs = _mk_outputs()
+    for i in range(3):
+        outs[i][:] = 0.5                # 全部恰等于阈值：numpy >= 门全过
+    assert _decode_scrfd(outs, 0.5, 50, 1.0, 0, 0) == []
