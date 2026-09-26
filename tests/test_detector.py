@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 import pytest
 
-from conftest import requires_scrfd
+from conftest import ROOT, requires_scrfd
 from faceblur_lite.detector import YuNetDetector
 
 # 注：tests/ 距项目根一层，故 parents[1]（brief 原文 parents[2] 指到仓库上一级，
@@ -70,6 +70,7 @@ def test_upscale_rescues_small_face():
     assert hits and hits[0].conf >= 0.3
 
 
+@requires_scrfd
 def test_make_detector_dispatch_and_unknown_kind():
     """工厂分派：yunet→YuNetDetector、scrfd→SCRFDDetector；未知 kind 抛错。"""
     from faceblur_lite.detector import (SCRFDDetector, YuNetDetector,
@@ -80,6 +81,7 @@ def test_make_detector_dispatch_and_unknown_kind():
         make_detector("retina", conf_thr=0.3)
 
 
+@requires_scrfd
 def test_make_detector_scrfd_ignores_upscale():
     """scrfd 无 upscale 旋钮（小脸能力即升级目的）——传了也不炸不生效。"""
     from faceblur_lite.detector import SCRFDDetector, make_detector
@@ -102,12 +104,12 @@ def test_resolve_model_path_per_kind(monkeypatch):
 
 
 @requires_scrfd
-def test_scrfd_detector_finds_lena_face(face_img):
+def test_scrfd_detector_finds_lena_face():
     """spike 金丝雀：det_500m 在 lena 出正确位置框（0.811，014 附录）。
     与 YuNet 框 IoU>0.5——同时锁输出张量序没接错。"""
     import cv2
     from faceblur_lite.detector import SCRFDDetector, YuNetDetector
-    frame = cv2.cvtColor(face_img, cv2.COLOR_RGB2BGR)
+    frame = cv2.imread(str(ROOT / "assets" / "lena.jpg"))
     s = SCRFDDetector(conf_thr=0.3).detect(frame)
     y = YuNetDetector(conf_thr=0.3).detect(frame)
     assert s and y
