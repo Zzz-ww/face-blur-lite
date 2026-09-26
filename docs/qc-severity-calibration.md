@@ -31,3 +31,26 @@
 
 - 检测器升级（SCRFD，backlog #7）——违规分布整体平移，阈值作废重采；
 - 新增视觉定性标签 ≥ 20 处（重点补 0.5–0.7 段）。
+
+## 附录：top_k 绑定性压测（2026-09-26，spec SCRFD §5）
+
+YuNet top_k∈{50,200,5000} × {real_video, celebv_5min}，det3 采样直测检出
+（不跑管线）：detections 差 0%/0% → 判定【不绑定】。
+A/B 两臂 top_k 同值，公平性成立。
+
+原始数字（6 行，conf_thr=0.3）：
+
+```text
+inputs/real-video/real_video.MP4 top_k=50: detect_calls=707 detections=1049 per_frame_max=12
+inputs/real-video/real_video.MP4 top_k=200: detect_calls=707 detections=1049 per_frame_max=12
+inputs/real-video/real_video.MP4 top_k=5000: detect_calls=707 detections=1049 per_frame_max=12
+inputs/big-face/celebv_5min.mp4 top_k=50: detect_calls=2783 detections=3850 per_frame_max=5
+inputs/big-face/celebv_5min.mp4 top_k=200: detect_calls=2783 detections=3850 per_frame_max=5
+inputs/big-face/celebv_5min.mp4 top_k=5000: detect_calls=2783 detections=3850 per_frame_max=5
+```
+
+判定过程：各视频 top_k=50 与 top_k=5000 的 detections 逐一对比——
+real_video 1049 vs 1049（差 0%），celebv 3850 vs 3850（差 0%），均 ≤5%
+→ 不绑定，产品码不动（detector.py 默认 top_k=50 维持）。旁证：
+per_frame_max 仅 12/5，远低于 top_k=50 档位，本样本集无截断空间，
+与 0% 差一致。产物日志：outputs/20260926-scrfd-ab/topk/raw_run.log。
