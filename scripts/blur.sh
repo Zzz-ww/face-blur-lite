@@ -260,6 +260,7 @@ cmd_run() {
   esac
   case "$DET" in yunet|scrfd) ;; *) die2 "--detector 仅支持 yunet|scrfd" ;; esac
   QC_DET=${QC_DET:-$DET}      # 缺省跟随 --detector（与 CLI pipeline 同语义）
+  case "$QC_DET" in yunet|scrfd) ;; *) die2 "--qc-detector 仅支持 yunet|scrfd" ;; esac
   if [ -n "$GO" ] && [ "$MODE" = "single" ]; then
     die2 "--go 与 --mode single 矛盾（--go 隐含 pipeline）"
   fi

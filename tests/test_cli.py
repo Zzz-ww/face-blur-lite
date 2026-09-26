@@ -105,6 +105,20 @@ def test_single_passes_detector_to_params(monkeypatch, tmp_path):
     assert rc == 0 and seen["params"].detector == "scrfd"
 
 
+def test_worker_passes_detector_to_params(monkeypatch, tmp_path):
+    """终审 Important-1：worker --detector 透传 KernelParams（跨机扩容
+    不静默回退 YuNet）。"""
+    from faceblur_lite import cli
+
+    seen = {}
+    monkeypatch.setattr(
+        "faceblur_lite.worker.worker_loop",
+        lambda cp, wid, params=None, idle_exit_s=0: seen.update(params=params))
+    rc = cli.main(["worker", "--db", str(tmp_path / "w.db"),
+                   "--detector", "scrfd"])
+    assert rc == 0 and seen["params"].detector == "scrfd"
+
+
 def test_pipeline_qc_detector_defaults_to_detector(monkeypatch, tmp_path):
     """--qc-detector 缺省跟随 --detector；显式给则覆盖（交叉验收位）。"""
     from faceblur_lite import cli

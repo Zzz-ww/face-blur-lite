@@ -65,6 +65,7 @@ def main(argv: list[str] | None = None) -> int:
     wk.add_argument("--idle-exit-s", type=float, default=0,
                     help="空闲多久退出；0=常驻（默认，容器部署模式）")
     wk.add_argument("--det-every", type=int, default=3)
+    wk.add_argument("--detector", choices=["yunet", "scrfd"], default="yunet")
 
     sp = sub.add_parser("split", help="切片算子（独立调用；DAG 节点模板用，R13）")
     sp.add_argument("input")
@@ -147,7 +148,8 @@ def main(argv: list[str] | None = None) -> int:
             from faceblur_lite.state import SqliteControlPlane
             cp = SqliteControlPlane(args.db)
         wid = f"w-{os.environ.get('HOSTNAME', os.getpid())}"
-        worker_loop(cp, wid, KernelParams(det_every=args.det_every),
+        worker_loop(cp, wid, KernelParams(det_every=args.det_every,
+                                          detector=args.detector),
                     idle_exit_s=args.idle_exit_s)
         return 0
 
