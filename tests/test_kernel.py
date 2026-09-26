@@ -41,9 +41,10 @@ def test_blur_all_dets_blurs_low_conf_no_birth(move_video, tmp_path, monkeypatch
     from faceblur_lite.detector import Det
 
     src, frames = move_video
+    # 构造点走 make_detector 后（2026-09-26 注入点改造），mock 缝同步搬家
     monkeypatch.setattr(
-        K, "YuNetDetector",
-        lambda model_path=None, conf_thr=0.3, **kw: type(
+        K, "make_detector",
+        lambda kind, mp, **kw: type(
             "FakeDet", (), {"detect": staticmethod(
                 lambda frame: [Det(280, 180, 380, 280, 0.35)])})())
     monkeypatch.setattr(K, "Tracker", K.Tracker)   # 真 tracker：0.35 永不出生
@@ -62,3 +63,26 @@ def test_blur_all_dets_blurs_low_conf_no_birth(move_video, tmp_path, monkeypatch
     with FFmpegReader(out2) as rd:
         got2 = list(rd)
     assert got2[i][185:275, 285:375].std() > crop_in.std() * 0.9   # 关掉则裸奔
+
+
+def test_kernel_threads_detector_kind(tmp_path, move_video, monkeypatch):
+    """注入点：KernelParams.detector 透传到 make_detector（mock 断言）。"""
+    from faceblur_lite import kernel
+    from faceblur_lite.kernel import KernelParams
+
+    calls = []
+
+    class FakeDet:
+        def detect(self, frame):
+            return []
+
+    def fake_make(kind, mp, **kw):
+        calls.append((kind, kw.get("conf_thr"), kw.get("upscale")))
+        return FakeDet()
+
+    monkeypatch.setattr(kernel, "make_detector", fake_make)
+    kernel.process_video(
+        move_video[0], str(tmp_path / "o.mp4"),
+        params=KernelParams(detector="scrfd", det_every=2, det_conf=0.4,
+                            det_upscale=1.5))
+    assert calls == [("scrfd", 0.4, 1.5)]

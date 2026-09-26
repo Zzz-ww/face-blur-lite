@@ -37,3 +37,24 @@ def test_qc_t_sec_exact_frame_timestamps(move_video, tmp_path):
     expected = {0.5, 1.6, 2.7, 3.8, 4.9}
     for v in rep.violations:
         assert any(abs(v.t_sec - e) < 0.01 for e in expected), v.t_sec
+
+
+def test_qc_video_threads_detector(tmp_path, move_video, monkeypatch):
+    """注入点：qc_video(detector=) 透传到 make_detector，conf 用 pass_conf。"""
+    from faceblur_lite import qc as qcmod
+    from faceblur_lite.qc import qc_video
+
+    calls = []
+
+    class FakeDet:
+        def detect(self, frame):
+            return []
+
+    def fake_make(kind, mp, **kw):
+        calls.append((kind, kw.get("conf_thr")))
+        return FakeDet()
+
+    monkeypatch.setattr(qcmod, "make_detector", fake_make)
+    rep = qc_video(move_video[0], sample_fps=2.0, pass_conf=0.5,
+                   detector="scrfd")
+    assert calls == [("scrfd", 0.5)] and rep.passed

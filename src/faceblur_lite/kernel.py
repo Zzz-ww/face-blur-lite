@@ -5,7 +5,7 @@ import time
 from dataclasses import dataclass, field
 
 from faceblur_lite.blur import blur_regions
-from faceblur_lite.detector import YuNetDetector
+from faceblur_lite.detector import make_detector
 from faceblur_lite.ffmpeg_io import FFmpegReader, FFmpegWriter, probe
 from faceblur_lite.tracker import Tracker
 
@@ -22,6 +22,7 @@ class KernelParams:
     high_thr: float = 0.5       # 跟踪高分阈值
     low_thr: float = 0.3        # 跟踪低分阈值（二轮救活下限）
     max_age: int = 3            # 遮挡容忍的检测轮数
+    detector: str = "yunet"    # 检测器 kind：yunet|scrfd（R5 升级位，spec 2026-09-26）
 
 
 @dataclass
@@ -42,8 +43,8 @@ def process_video(input_path: str, output_path: str,
     rep = KernelReport()
     t0 = time.time()
     meta = probe(input_path)
-    detector = YuNetDetector(model_path, conf_thr=p.det_conf,
-                             upscale=p.det_upscale)
+    detector = make_detector(p.detector, model_path,
+                             conf_thr=p.det_conf, upscale=p.det_upscale)
     tracker = Tracker(high_thr=p.high_thr, low_thr=p.low_thr, max_age=p.max_age,
                       frame_wh=(meta.width, meta.height))
 

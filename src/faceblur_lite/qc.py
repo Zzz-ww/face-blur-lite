@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from faceblur_lite.detector import YuNetDetector
+from faceblur_lite.detector import make_detector
 from faceblur_lite.ffmpeg_io import FFmpegReader
 
 DEFAULT_SAMPLE_FPS = 1.0
@@ -51,10 +51,11 @@ class QCReport:
 
 def qc_video(path: str, sample_fps: float | None = DEFAULT_SAMPLE_FPS,
              pass_conf: float = DEFAULT_PASS_CONF,
-             model_path: str | None = None) -> QCReport:
+             model_path: str | None = None,
+             detector: str = "yunet") -> QCReport:
     """sample_fps=None → 全密度逐帧复检（最终验收用）。"""
     rep = QCReport()
-    det = YuNetDetector(model_path, conf_thr=pass_conf)
+    det = make_detector(detector, model_path, conf_thr=pass_conf)
     with FFmpegReader(path, sample_fps=sample_fps) as rd:
         stride, offset, fps = rd.sample_stride, rd.sample_offset, rd.meta.fps
         for i, frame in enumerate(rd):
