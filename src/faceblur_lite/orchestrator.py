@@ -75,6 +75,7 @@ def _orchestrate(specs: list[tuple[str, str]], workdir: str,
                  workers: int, segment_s: float,
                  params: KernelParams | None,
                  qc_sample_fps: float,
+                 qc_detector: str,
                  cp_url: str | None = None) -> list[PipelineResult]:
     t0 = time.time()
     p = params or KernelParams()
@@ -171,7 +172,8 @@ def _orchestrate(specs: list[tuple[str, str]], workdir: str,
         stem = Path(video["input_path"]).stem
         if video["status"] == "qc_wait":
             prog.line(f"qc {stem} …")
-            rep = qc_video(video["output_path"], sample_fps=qc_sample_fps)
+            rep = qc_video(video["output_path"], sample_fps=qc_sample_fps,
+                           detector=qc_detector)
             status = "done" if rep.passed else "qc_failed"
             final_path = video["output_path"]
             suffix = ""
@@ -227,6 +229,7 @@ def run_batch(inputs: list[str], outdir: str, workdir: str,
               workers: int = 2, segment_s: float = 30.0,
               params: KernelParams | None = None,
               qc_sample_fps: float = 1.0,
+              qc_detector: str = "yunet",
               cp_url: str | None = None) -> list[PipelineResult]:
     """批量：输出到 outdir/<stem>_blurred.mp4。R10。
 
@@ -249,14 +252,16 @@ def run_batch(inputs: list[str], outdir: str, workdir: str,
     if not specs:                                # 全部碰撞：无需起 Worker 池
         return collisions
     return _orchestrate(specs, workdir, workers, segment_s,
-                        params, qc_sample_fps, cp_url) + collisions
+                        params, qc_sample_fps, qc_detector, cp_url) + collisions
 
 
 def run_pipeline(input_path: str, output_path: str, workdir: str,
                  workers: int = 2, segment_s: float = 30.0,
                  params: KernelParams | None = None,
                  qc_sample_fps: float = 1.0,
+                 qc_detector: str = "yunet",
                  cp_url: str | None = None) -> PipelineResult:
     """单视频便捷封装（显式输出路径）。"""
     return _orchestrate([(input_path, output_path)], workdir, workers,
-                        segment_s, params, qc_sample_fps, cp_url)[0]
+                        segment_s, params, qc_sample_fps, qc_detector,
+                        cp_url)[0]

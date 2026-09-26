@@ -37,6 +37,8 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--det-every", type=int, default=3)
     s.add_argument("--det-conf", type=float, default=0.3)
     s.add_argument("--margin", type=float, default=0.15)
+    s.add_argument("--detector", choices=["yunet", "scrfd"],
+                   default="yunet", help="检测器（SCRFD=spec 2026-09-26）")
 
     p = sub.add_parser(
         "pipeline", help="批量分片并行：控制面 + N 个数据面 Worker（R10）")
@@ -47,6 +49,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--workers", type=int, default=2)
     p.add_argument("--segment", type=float, default=30.0)
     p.add_argument("--det-every", type=int, default=3)
+    p.add_argument("--detector", choices=["yunet", "scrfd"], default="yunet")
+    p.add_argument("--qc-detector", choices=["yunet", "scrfd"], default=None,
+                   help="qc 复检检测器；缺省跟随 --detector（交叉验收位）")
     p.add_argument("--cp-url", default=None,
                    help="Go 控制面服务地址（如 http://127.0.0.1:8080）；"
                         "默认 SQLite 内嵌控制面")
@@ -60,6 +65,7 @@ def main(argv: list[str] | None = None) -> int:
     wk.add_argument("--idle-exit-s", type=float, default=0,
                     help="空闲多久退出；0=常驻（默认，容器部署模式）")
     wk.add_argument("--det-every", type=int, default=3)
+    wk.add_argument("--detector", choices=["yunet", "scrfd"], default="yunet")
 
     sp = sub.add_parser("split", help="切片算子（独立调用；DAG 节点模板用，R13）")
     sp.add_argument("input")
@@ -74,6 +80,7 @@ def main(argv: list[str] | None = None) -> int:
     q.add_argument("video")
     q.add_argument("--sample-fps", type=_sample_fps, default=1.0,
                    help='抽样密度；"none"/"all"=全密度逐帧（最终验收）')
+    q.add_argument("--detector", choices=["yunet", "scrfd"], default="yunet")
 
     d = sub.add_parser("demo-video", help="生成合成测试视频")
     d.add_argument("output")
@@ -95,7 +102,7 @@ def main(argv: list[str] | None = None) -> int:
         rep = process_video(
             args.input, args.output,
             KernelParams(det_every=args.det_every, det_conf=args.det_conf,
-                         margin=args.margin))
+                         margin=args.margin, detector=args.detector))
         print(json.dumps(rep.__dict__, ensure_ascii=False, indent=2))
         return 0
 
@@ -107,8 +114,10 @@ def main(argv: list[str] | None = None) -> int:
             results = run_batch(
                 args.inputs, args.outdir, args.workdir,
                 workers=args.workers, segment_s=args.segment,
-                params=KernelParams(det_every=args.det_every),
-                cp_url=args.cp_url)
+                params=KernelParams(det_every=args.det_every,
+                                    detector=args.detector),
+                cp_url=args.cp_url,
+                qc_detector=args.qc_detector or args.detector)
         except WorkdirReuseError as e:      # BUG-017：输入错误类 → rc 2
             print(f"workdir 复用被拒绝：{e}", file=sys.stderr)
             return 2
@@ -139,7 +148,8 @@ def main(argv: list[str] | None = None) -> int:
             from faceblur_lite.state import SqliteControlPlane
             cp = SqliteControlPlane(args.db)
         wid = f"w-{os.environ.get('HOSTNAME', os.getpid())}"
-        worker_loop(cp, wid, KernelParams(det_every=args.det_every),
+        worker_loop(cp, wid, KernelParams(det_every=args.det_every,
+                                          detector=args.detector),
                     idle_exit_s=args.idle_exit_s)
         return 0
 
@@ -157,7 +167,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "qc":
         from faceblur_lite.qc import qc_video
-        rep = qc_video(args.video, sample_fps=args.sample_fps)
+        rep = qc_video(args.video, sample_fps=args.sample_fps,
+                       detector=args.detector)
         print(json.dumps({
             "passed": rep.passed, "sampled": rep.sampled_frames,
             "fatal": rep.fatal_count, "marginal": rep.marginal_count,

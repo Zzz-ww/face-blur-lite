@@ -69,3 +69,79 @@ def test_qc_exit_code_three_levels():
     assert _qc_exit_code(ok) == 0
     assert _qc_exit_code(marginal) == 1
     assert _qc_exit_code(fatal) == 3
+
+
+def _fake_results():
+    class R:
+        video_id = "v"
+        status = "done"
+        qc = None
+        chunk_count = 1
+        wall_s = 0.0
+        output_path = "o"
+        error = None
+    return [R()]
+
+
+def test_single_passes_detector_to_params(monkeypatch, tmp_path):
+    from faceblur_lite import cli
+
+    class FakeRep:                    # cli single 分支只读这些字段进 JSON
+        frames = 1
+        detections = 0
+        predicted_frames = 0
+        track_count = 0
+        segments = []
+        duration_s = 0.0
+        wall_s = 0.0
+
+    seen = {}
+    monkeypatch.setattr(
+        "faceblur_lite.kernel.process_video",
+        lambda i, o, params=None, model_path=None:
+        seen.update(params=params) or FakeRep())
+    rc = cli.main(["single", str(tmp_path / "in.mp4"),
+                   str(tmp_path / "out.mp4"), "--detector", "scrfd"])
+    assert rc == 0 and seen["params"].detector == "scrfd"
+
+
+def test_worker_passes_detector_to_params(monkeypatch, tmp_path):
+    """终审 Important-1：worker --detector 透传 KernelParams（跨机扩容
+    不静默回退 YuNet）。"""
+    from faceblur_lite import cli
+
+    seen = {}
+    monkeypatch.setattr(
+        "faceblur_lite.worker.worker_loop",
+        lambda cp, wid, params=None, idle_exit_s=0: seen.update(params=params))
+    rc = cli.main(["worker", "--db", str(tmp_path / "w.db"),
+                   "--detector", "scrfd"])
+    assert rc == 0 and seen["params"].detector == "scrfd"
+
+
+def test_pipeline_qc_detector_defaults_to_detector(monkeypatch, tmp_path):
+    """--qc-detector 缺省跟随 --detector；显式给则覆盖（交叉验收位）。"""
+    from faceblur_lite import cli
+    seen = {}
+    monkeypatch.setattr(
+        "faceblur_lite.orchestrator.run_batch",
+        lambda *a, **kw: seen.update(kw) or _fake_results())
+    cli.main(["pipeline", str(tmp_path / "x.mp4"),
+              "--outdir", str(tmp_path), "--workdir", str(tmp_path / "wd1"),
+              "--detector", "scrfd"])
+    assert seen["qc_detector"] == "scrfd" and seen["params"].detector == "scrfd"
+    cli.main(["pipeline", str(tmp_path / "x.mp4"),
+              "--outdir", str(tmp_path), "--workdir", str(tmp_path / "wd2"),
+              "--detector", "scrfd", "--qc-detector", "yunet"])
+    assert seen["qc_detector"] == "yunet"
+
+
+def test_qc_passes_detector(monkeypatch, tmp_path):
+    from faceblur_lite import cli
+    from faceblur_lite.qc import QCReport
+    seen = {}
+    monkeypatch.setattr("faceblur_lite.qc.qc_video",
+                        lambda path, **kw: seen.update(kw) or QCReport())
+    rc = cli.main(["qc", str(tmp_path / "v.mp4"),
+                   "--detector", "scrfd"])
+    assert rc == 0 and seen["detector"] == "scrfd"

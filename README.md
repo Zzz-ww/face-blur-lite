@@ -33,6 +33,17 @@ python -m venv venv && ./venv/bin/pip install -e ".[dev]"
 ./venv/bin/faceblur-lite status work-pipeline/pipeline.db
 ```
 
+模型（`scripts/download_assets.sh` 下载，sha256 校验，不入库）：
+
+| 检测器 | 模型 | 体积 | 用法 |
+|---|---|---|---|
+| YuNet（默认） | face_detection_yunet_2023mar.onnx | 232KB | 默认；`FACEBLUR_MODEL` 覆盖 |
+| SCRFD | det_500m.onnx（buffalo_s） | 2.5MB | `--detector scrfd`；`FACEBLUR_SCRFD_MODEL` 覆盖 |
+
+SCRFD 换档见 [BUG-014 附录](docs/bugs/014-tiny-face-capability-envelope.md)（A/B 实测
+未胜出：同 conf 0.3 违规 det3 +69.7% / det1-px8 +80.3%——opt-in 档，小脸包络
+下探 32px，默认维持 YuNet）。qc 交叉验收位：`--qc-detector yunet`。
+
 目录约定：源片统一放 `inputs/`（按波次/会话分子目录，不入库）；成品只落 `outputs/`——单视频默认 `outputs/` 根（一进一出），实验/多配置/批量先进带日期会话目录（`--outdir outputs/20260925-实验名/`），详见 `outputs/README.md`。
 
 子命令速查：`single`（单进程内核）｜`pipeline`（批量并行）｜`worker`（独立常驻 Worker：`--cp-url` 连 Go 控制面或 `--db` 连本地库，容器/跨机扩容单元）｜`split` / `merge`（算子独立调用，DAG 引擎节点模板可直接引用）｜`qc`｜`demo-video`｜`stats`｜`status`。
@@ -118,7 +129,7 @@ fail_rate: 0.0%
 - **重复提交不去重** → 幂等提交键（input+params hash），断点续跑
 - **FIFO 无优先级/公平调度**（长视频头部队头阻塞后提交的小视频）
 - **检测绑定 face-blur 内核** → 任务声明算子+注册表，Worker 变通用执行器（加车牌/人体脱敏算子控制面零改动）
-- **YuNet 遮挡 recall 一般** → SCRFD 升级（协议已留，换实现类管线零改动）
+- **YuNet 遮挡 recall 一般** → SCRFD 档已落地（`--detector scrfd`，opt-in；A/B 未胜出，见 014 附录）→ 调参/关联改进后复跑 A/B
 - 上云三步：gocp 独立部署 → Worker 打镜像常驻（`worker` 子命令已就位）→ 百舸任务式；完整迁移清单见 design.md §7.2
 
 完整清单见实施计划"开放细化项"（12 条，按优先级）：`docs/superpowers/plans/2026-09-23-face-blur-lite-mvp.md`。

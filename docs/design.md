@@ -220,6 +220,10 @@ CPU 可跑（demo 无 GPU）、许可宽松、体积小、对"糊脸"够用—�
 
 **决策**：MVP 用 YuNet，检测藏在 `Detector` 协议后（`detect(frame_bgr) -> list[Det]`）；SCRFD 为声明式升级——换实现类，管线零改动。预处理（缩放/归一化）在检测器内部完成（`setInputSize`），管线只递原始 BGR 帧。
 
+> 2026-09-26 已回收：`--detector scrfd`（det_500m）全链落地；本轮 A/B
+> 未胜出（数字见 [bugs/014](bugs/014-tiny-face-capability-envelope.md) 附录），
+> 默认维持 YuNet；翻默认须待后续调参/关联改进后复跑 A/B 另立 commit。
+
 #### 模型输入格式链路（R4：模型吃帧 tensor，不吃视频文件）
 
 ```mermaid
