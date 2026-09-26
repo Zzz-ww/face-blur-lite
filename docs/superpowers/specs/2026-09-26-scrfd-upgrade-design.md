@@ -62,18 +62,26 @@
 ## 5. Phase 1：top_k 绑定性压测（Task 0，纯测量不改产品码）
 
 - 矩阵：top_k ∈ {50, 200, 5000} × {real_video（默认 det3）, celebv_5min}；
-  指标 detections / qc violations / wall_s。
+  指标 detections / qc violations / wall_s；qc 闸门全程固定 YuNet 现默认
+  （升级前冻结世界，变量只有 top_k）。
 - 判定：50 档与 5000 档检出差 >5% 即"绑定"→ YuNet top_k 提档进本波
   （改默认值一行 + A/B 记录）；不绑定则结论归档（校准文档附录）。
 
 ## 6. A/B 验收（Phase 2 收尾，产物进 outputs/20260926-scrfd-ab/）
 
-- **冻结基线**（BUG-014 实测表）：real_video 默认 det3=492/2121、最优
-  det1+px8+并集=308；5 真实样本绿灯回归（celebv_sample1/musicfest/street/
-  celebv_5min/real_video 中已绿者不得新转红）。
-- **SCRFD 档**：同配置换 `--detector scrfd`，det_conf 矩阵 {0.3, 0.4, 0.5}
+- **同闸门原则**：违规数可比的前提是两臂 qc 检测器一致——492/308 是
+  YuNet 闸门的历史数，不能直接当 SCRFD 闸门下的对照（用户复核时戳出，
+  2026-09-26 修）。
+- **A 臂（新基线）**：YuNet 内核 + **SCRFD 闸门**重跑 real_video（默认
+  det3 与最优 det1+px8+并集两配置）——A 臂对 492/308 的差 = 闸门灵敏度
+  变化本身（独立记录）。
+- **B 臂**：SCRFD 内核 + SCRFD 闸门，det_conf 矩阵 {0.3, 0.4, 0.5}
   （SCRFD 置信分布更尖锐，0.3 未必仍是对的角色）。
-- **胜出判据**：旗舰违规显著下降（≥30%）且 wall_s 劣化 ≤10%。
+- **胜出判据**：B 对 A 违规下降 ≥30% 且 wall_s 劣化 ≤10%（同闸门同尺）。
+  492/308 降为历史参照列出。
+- **5 样本绿灯回归**：B 臂成品主判 SCRFD 闸门（celebv_sample1/musicfest/
+  street/celebv_5min/real_video 中已绿者不得新转红）；YuNet 闸门顺带跑作
+  交叉参考列（转红不否决、须解释——交叉验收副产品）。
 - **重校准条款命中**：红灯样本 qc conf 分布重采 → T_FATAL_CONF 复评，
   结论进 docs/qc-severity-calibration.md（qc.py:15-18 注释的触发条件）。
 - 胜出后翻默认=下一波一个 commit（本波 SCRFD 保持 opt-in）。
