@@ -12,3 +12,4 @@ assets/*.jpg
 .DS_Store
 .superpowers/
 docs/design.pdf
+.graphify/

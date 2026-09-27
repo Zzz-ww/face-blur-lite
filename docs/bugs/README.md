@@ -21,6 +21,7 @@ SDD（subagent-driven development）执行期发现并修复的 bug，一 bug �
 | [015](015-big-face-kernel-cost.md) | celebv 特写首跑 | 大脸（440-530px）比例核 k≈450 成本 O(k×像素) 爆炸（~2.1s/帧）+ single 静默假死 → 降采样快路径（σ 等效，116s，≈9×）+ 心跳 | 已修复 |
 | [016](016-qc-phase-lock-recurrence.md) | 业内对标冷读 | 例行 qc 固定中点跨步与 det_every 锁相（30fps@1fps 恒抽检测帧，2/3 预测帧零覆盖，BUG-010 换马甲）→ 步长取整到与 2..8 互素 | 已修复 |
 | [017](017-workdir-reuse-pollution.md) | 用户实跑诊断 | workdir 跨轮复用污染控制面库（stats 跨轮垃圾/虚报 qc_failed/遗留 pending 被新池认领）→ sqlite 非空库显式拒绝（rc 2），gocp 共享语义豁免 | 已修复 |
+| [018](018-multistream-container-split.md) | 真实视频波（DJI） | 多流容器（DJI data 流 tag=priv + 字幕流）撞 splitter `-map 0` 全量复制 → segment 写头失败；正解=入口标准化 normalize 算子（已定盘待落地） | 待修复 |
 
 环境类问题（非代码 bug）见 [env-notes.md](env-notes.md)。
 
