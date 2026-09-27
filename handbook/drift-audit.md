@@ -1,6 +1,6 @@
 # drift-audit：handbook 与旧 docs/ 对账清单
 
-> **内部件**（外部读者可跳过）。方法：handbook 以代码为唯一事实源重推（T1），旧 `docs/` 为叙事与研究档案（T2）；两者冲突以代码/handbook 为准（见 [README.md](README.md) 分工声明）。旧档不改——它们记录的是"当时的真相"。
+> **内部件**（外部读者可跳过）。方法：handbook 以代码为唯一事实源重推（T1），旧 `docs/` 为叙事与研究档案（T2）；两者冲突以代码/handbook 为准（见 [structure.md](structure.md) 分工声明）。旧档不改——它们记录的是"当时的真相"。
 
 ## 总评
 
