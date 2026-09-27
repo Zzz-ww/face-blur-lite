@@ -138,6 +138,7 @@ fail_rate: 0.0%
 
 ## 文档
 
+- [handbook/](handbook/README.md) — **体系文档集**（Diátaxis 四象限：intro 入门 / how-to 操作指南 / reference 权威参考 / explanation 深入解释，以当前代码为唯一事实源重推，矛盾时以它为准）
 - [docs/design.md](docs/design.md) — 详细设计（四大视图 + ADR + 容错 + 业界平台对照 + 演进路线，Mermaid 图示）
 - [docs/pipeline-guide.md](docs/pipeline-guide.md) — 全链路管线指南（一帧的旅程：逐层格式变换 + 检测/跟踪/糊机理 + 异常五层处置矩阵）
 - [docs/overview.md](docs/overview.md) — 总装与业界坐标（五层版图对位 + 具身数据全景 + 具身/智驾双泳道）
