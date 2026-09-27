@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 460" font-family="-apple-system,'PingFang SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="arrk" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="960" height="460" rx="14" fill="#f8fafc"/>
+  <text x="28" y="40" font-size="18" font-weight="700" fill="#0f172a">数据模型 · 两级状态机表（DDL 取自 state.py，Python/Go 逐字一致）</text>
+  <text x="28" y="62" font-size="12.5" fill="#64748b">字段即语义：幂等键 · 租约 · 围栏 · 重试预算都直接存在表里，不是写在代码里</text>
+
+  <!-- videos 表 -->
+  <rect x="28" y="84" width="330" height="268" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="40" y="106" font-size="13" font-weight="700" fill="#1e40af">videos（任务级 · 一个视频一行）</text>
+  <rect x="40" y="116" width="306" height="166" rx="6" fill="#ffffff"/>
+  <g font-family="ui-monospace,Menlo,monospace" font-size="11.5" fill="#334155">
+    <text x="52" y="136">id TEXT <tspan font-weight="700">PK</tspan></text>
+    <text x="52" y="155">input_path TEXT NOT NULL</text>
+    <text x="52" y="174">output_path TEXT NOT NULL</text>
+    <text x="52" y="193">merged_path TEXT</text>
+    <text x="52" y="212">status TEXT</text>
+    <text x="52" y="231">error TEXT</text>
+    <text x="52" y="250">created_at REAL</text>
+    <text x="52" y="269">finished_at REAL</text>
+  </g>
+  <text x="40" y="300" font-size="11.5" fill="#475569">status：processing → merging → qc_wait</text>
+  <text x="40" y="318" font-size="11.5" fill="#475569">→ done / qc_failed / failed（终态不可逆）</text>
+
+  <!-- 外键 1:N 连接 -->
+  <text x="403" y="172" font-size="14" font-weight="700" fill="#64748b" text-anchor="middle">1</text>
+  <line x1="388" y1="192" x2="418" y2="192" stroke="#94a3b8" stroke-width="2"/>
+  <line x1="418" y1="214" x2="392" y2="214" stroke="#2563eb" stroke-width="2" marker-end="url(#arrk)"/>
+  <text x="403" y="244" font-size="14" font-weight="700" fill="#64748b" text-anchor="middle">N</text>
+  <text x="403" y="264" font-size="11" fill="#94a3b8" text-anchor="middle">video_id</text>
+  <text x="403" y="278" font-size="11" fill="#94a3b8" text-anchor="middle">REFERENCES</text>
+
+  <!-- chunks 表 -->
+  <rect x="446" y="84" width="486" height="268" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="458" y="106" font-size="13" font-weight="700" fill="#166534">chunks（单元级 · 一个切片一行）</text>
+  <rect x="458" y="116" width="462" height="185" rx="6" fill="#ffffff"/>
+  <g font-family="ui-monospace,Menlo,monospace" font-size="11.5" fill="#334155">
+    <text x="470" y="136">id TEXT <tspan font-weight="700">PK</tspan></text>
+    <text x="470" y="155">video_id TEXT <tspan font-weight="700">FK</tspan> · <tspan font-weight="700">UNIQUE(video_id, idx)</tspan><tspan fill="#9333ea"> ← 幂等键</tspan></text>
+    <text x="470" y="174">idx INTEGER</text>
+    <text x="470" y="193">input_path / output_path TEXT</text>
+    <text x="470" y="212">status TEXT · attempt INTEGER（≤3）</text>
+    <text x="470" y="231">worker_id TEXT<tspan fill="#9333ea"> ← 围栏 ½</tspan></text>
+    <text x="470" y="250">lease_until REAL<tspan fill="#9333ea"> ← 租约 900s</tspan></text>
+    <text x="470" y="269">metrics TEXT(JSON) · enqueued_at / started_at / finished_at REAL</text>
+    <text x="470" y="288">error TEXT</text>
+  </g>
+  <text x="458" y="318" font-size="11.5" fill="#475569">status：pending ⇄ running → done / failed</text>
+  <text x="458" y="336" font-size="11.5" fill="#475569">（attempt+1 回 pending 重试，耗尽 failed）</text>
+
+  <!-- 字段语义 × 业界等价 -->
+  <rect x="28" y="372" width="904" height="72" rx="8" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="40" y="392" font-size="12" font-weight="700" fill="#475569">字段语义 × 业界等价（一句话版）</text>
+  <text x="40" y="412" font-size="11.5" fill="#64748b">两级表 ↔ Airflow DagRun/TaskInstance · K8s Job/Pod ｜ 幂等键 ↔ Airflow (dag_id,run_id,task_id)</text>
+  <text x="40" y="430" font-size="11.5" fill="#64748b">(worker_id, attempt) 围栏 ↔ SQS ReceiptHandle · K8s resourceVersion ｜ lease_until ↔ SQS visibility timeout ｜ DDL 逐字一致 ↔ protobuf/OpenAPI 契约先行</text>
+</svg>
