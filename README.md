@@ -84,7 +84,7 @@ scatter-gather：  视频 ─split→ [chunk_0 … chunk_N] ─blur×N（并行�
 | R6 | 预测下一帧人脸坐标 | `Tracker.predict()` 恒速运动模型外推——显式、可单测 |
 | R7 | 控制面/数据面 + 控制面 Go | 契约先行：`ControlPlane` 协议，SQLite 内嵌 / gocp Go 服务双形态，同一份契约测试 |
 | R8 | 业界工作流平台 | 三平台映射见 [docs/platform-mapping.md](docs/platform-mapping.md) |
-| R9 | 怎么证明没漏 | 输出域抽帧复检闸门（qc），违规即 qc_failed + 违规帧清单 |
+| R9 | 怎么证明没漏 | 输出域抽帧复检闸门（qc）：T_FATAL=0.7 分 fatal/marginal，退出码梯 0/1/3；违规即 qc_failed 隔离区 + 取证式违规帧清单 |
 
 （R10-R14：批量共享池 / 大量视频吞吐 / 容器迁移 / DAG 引擎切换 / 观测出口——见 [docs/design.md](docs/design.md) §1.2。）
 
@@ -117,6 +117,8 @@ fail_rate: 0.0%
 | 三视频一次提交批量 | **57.6s**，14 chunks 全 done，qc 3/3 通过（抽帧 300/30/90，0 违规），输出时长与输入逐帧一致 |
 | 单 chunk 处理 | p50 10.7s / p95 12.8s（30s 切片） |
 
+> 注：抽帧计数 300/30/90 是采集当时的等距步长口径；BUG-016（2026-09-25，互素步长防相位锁相）落地后同输入为 273/27/82（fps10@1fps 步长 10→11）——有效密度约降 9% 是该项修复的已知代价。
+
 解读（诚实版）：本机单进程内核已吃满 CPU（user/real≈7.7 核，OpenCV/ffmpeg 内部多线程），进程级分片在**本机**无净加速（57.6s vs 54.9s，≈5% 编排开销）；scatter-gather 的加速位在单进程线程受限的场景——容器 CPU 配额、跨机 Worker 池。批量的确定收益是**摊销**：一次提交一个共享池，三视频在同一窗口完成（51.4/55.1/55.7s），小视频以队列交错搭车、无需逐个跑。另可观察 FIFO 公平性缺口：小视频 chunk 排在长视频 10 个 chunk 之后（queue p95 38.2s 即其等待），公平调度记为演进项。
 
 ## 已知限制与演进
@@ -138,10 +140,12 @@ fail_rate: 0.0%
 
 - [docs/design.md](docs/design.md) — 详细设计（四大视图 + ADR + 容错 + 业界平台对照 + 演进路线，Mermaid 图示）
 - [docs/pipeline-guide.md](docs/pipeline-guide.md) — 全链路管线指南（一帧的旅程：逐层格式变换 + 检测/跟踪/糊机理 + 异常五层处置矩阵）
+- [docs/overview.md](docs/overview.md) — 总装与业界坐标（五层版图对位 + 具身数据全景 + 具身/智驾双泳道）
+- [docs/report.md](docs/report.md) — 对外汇报纸面版（业界五层体系为纲 × 本项目逐层实证）
 - [docs/platform-mapping.md](docs/platform-mapping.md) — 百舸/火山 LAS/胜算平台映射 + 通用引擎对照
 - [docs/superpowers/plans/2026-09-23-face-blur-lite-mvp.md](docs/superpowers/plans/2026-09-23-face-blur-lite-mvp.md) — 实施计划（TDD 任务分解）
 - [docs/bugs/](docs/bugs/) — 执行期 bug 记录（根因/修复/教训）
 
 ## 状态
 
-MVP 完成（Task 0-12）：55 测试绿，控制面双形态（SQLite 内嵌 / gocp Go 服务）契约测试参数化双跑（11 用例 ×2=22）+ 终审修复波回归（切片确定性/撇号路径/输出碰撞/缺 id 语义）。
+MVP 完成（Task 0-12）+ 加固波（fencing 复合围栏 / qc T_FATAL 分级 + qc_failed 隔离区 / 抽样相位锁相 BUG-010→016 / SCRFD A/B opt-in）：**139 测试绿**（口径基线 fa65f90）；控制面双形态（SQLite 内嵌 / gocp Go 服务）契约测试参数化双跑，14 场景 ×2 实现=28。
