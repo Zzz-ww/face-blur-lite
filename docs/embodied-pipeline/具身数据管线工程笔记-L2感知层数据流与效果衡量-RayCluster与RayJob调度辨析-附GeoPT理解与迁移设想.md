@@ -1,6 +1,6 @@
 # 具身数据管线工程笔记：四层蓝图、感知层模型选型与产出衡量、RayCluster 与 RayJob 调度辨析、GeoPT 理解与迁移设想
 
-> **记录日期**：2026-09-29 · 修订 2026-10-11（增补业界实证：选型佐证、显存预算、§2.4 执行形态辨析、§1.1 LeRobot v3.0 落盘样例、管线全景补数据仿真源）
+> **记录日期**：2026-09-29 · 修订 2026-10-11（增补业界实证：选型佐证、显存预算、§2.4 执行形态辨析、§1.1 LeRobot v3.0 落盘样例、管线全景补数据仿真源、§1.3 图示改外链 SVG 修复 GitHub 渲染）
 > **背景**：围绕具身数据工程的三部分内容：一、具身数据管线四层蓝图与感知层模型选型、产出衡量；二、RayCluster 与 RayJob 调度辨析；三、GeoPT（*Lifted Geometric Pre-Training for Physics Simulation*，arXiv 2602.20399）理解与迁移设想。
 > **关联**：三章各有调研底稿细化——[调研笔记-01 · 模型选型](调研笔记-01-具身数据处理模型-场景化选型与管线结合.md)、[调研笔记-02 · Ray 框架](调研笔记-02-Ray分布式框架调研与管线应用.md)、[调研笔记-03 · GeoPT](调研笔记-03-GeoPT理解与迁移设想.md)；[调研笔记-04 · 阿里云 EMR 实践](调研笔记-04-阿里云EMR-Serverless-Spark-Ray具身数据管线最佳实践拆解.md)跨第一、二章作业界实证底稿（选型佐证 + 执行形态对照）。
 
@@ -124,104 +124,7 @@ dataset/
 
 ### 1.3 通用数据产出衡量体系
 
-<div style="font-family:-apple-system,'PingFang SC',system-ui,sans-serif;background:#f6f7f9;padding:16px;box-sizing:border-box;width:100%;overflow-x:auto;">
-  <div style="font-size:16px;font-weight:700;color:#1f2937;margin-bottom:6px;">通用数据产出衡量体系</div>
-  <div style="font-size:13px;color:#6b7280;margin-bottom:14px;">三层质量递进（自洽 → GT 验证 → 训练收益）· 成本横切 · 回归闭环</div>
-  <svg viewBox="0 0 940 640" style="width:100%;min-width:940px;height:auto;" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'PingFang SC',system-ui,sans-serif">
-    <defs>
-      <marker id="mA" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#2563eb"/></marker>
-      <marker id="mG" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#059669"/></marker>
-      <marker id="mP" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#7c3aed"/></marker>
-      <marker id="mR" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#dc2626"/></marker>
-    </defs>
-    <!-- ===== 主列：衡量对象 + 三层质量 ===== -->
-    <rect x="24" y="76" width="196" height="128" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
-    <text x="122" y="100" text-anchor="middle" font-size="13" fill="#1d4ed8" font-weight="700">衡量对象</text>
-    <text x="122" y="122" text-anchor="middle" font-size="11" fill="#374151">任意数据产线输出</text>
-    <text x="122" y="141" text-anchor="middle" font-size="11" fill="#374151">结构化数据产物</text>
-    <text x="122" y="162" text-anchor="middle" font-size="10.5" fill="#6b7280">轨迹 · 几何 · 语义 · 标注</text>
-    <text x="122" y="182" text-anchor="middle" font-size="10" fill="#6b7280">（示例：L2 四层标注）</text>
-    <!-- 对象 → S1 -->
-    <line x1="220" y1="140" x2="250" y2="140" stroke="#2563eb" stroke-width="2" marker-end="url(#mA)"/>
-    <!-- S1 -->
-    <rect x="250" y="76" width="440" height="96" rx="10" fill="#ecfdf5" stroke="#059669" stroke-width="2"/>
-    <text x="268" y="99" font-size="13" fill="#047857" font-weight="700">S1 · 自洽性 / 工程可用性（无需 GT）</text>
-    <text x="268" y="120" font-size="11" fill="#374151">量产拦截：抓"明显坏了"的样本</text>
-    <text x="268" y="142" font-size="11" fill="#374151">指标族：完整性 · 一致性 · 成功率 · 置信度 · 时序稳定</text>
-    <text x="268" y="162" font-size="11" fill="#047857" font-weight="700">挂接 → 管线工程指标</text>
-    <!-- S1 → S2 -->
-    <line x1="480" y1="172" x2="480" y2="196" stroke="#059669" stroke-width="2" marker-end="url(#mG)"/>
-    <!-- S2 -->
-    <rect x="250" y="196" width="440" height="118" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
-    <text x="268" y="219" font-size="13" fill="#1d4ed8" font-weight="700">S2 · 精度对比 / GT 验证（三套 GT）</text>
-    <text x="268" y="240" font-size="11" fill="#374151">证明"准"：抓"自洽但错位 / 漂移"的样本</text>
-    <text x="268" y="260" font-size="11" fill="#374151">指标族：几何误差族 · 位姿误差族 · 语义误差族</text>
-    <rect x="268" y="268" width="130" height="24" rx="5" fill="#dbeafe" stroke="#93c5fd"/>
-    <text x="333" y="284" text-anchor="middle" font-size="10" fill="#1d4ed8">仿真合成 GT（主力）</text>
-    <rect x="408" y="268" width="120" height="24" rx="5" fill="#dbeafe" stroke="#93c5fd"/>
-    <text x="468" y="284" text-anchor="middle" font-size="10" fill="#1d4ed8">伪 GT（真实域抽检）</text>
-    <rect x="538" y="268" width="130" height="24" rx="5" fill="#dbeafe" stroke="#93c5fd"/>
-    <text x="603" y="284" text-anchor="middle" font-size="10" fill="#1d4ed8">真实 Hold-out（最终验证）</text>
-    <text x="268" y="306" font-size="11" fill="#1d4ed8" font-weight="700">挂接 → 算法质量指标</text>
-    <!-- S2 → S3 -->
-    <line x1="480" y1="314" x2="480" y2="338" stroke="#2563eb" stroke-width="2" marker-end="url(#mA)"/>
-    <!-- S3 -->
-    <rect x="250" y="338" width="440" height="96" rx="10" fill="#fff7ed" stroke="#ea580c" stroke-width="2"/>
-    <text x="268" y="361" font-size="13" fill="#c2410c" font-weight="700">S3 · 下游数据收益 / 训练回归</text>
-    <text x="268" y="382" font-size="11" fill="#374151">证明"有效"：数据喂下游训练后的收益</text>
-    <text x="268" y="404" font-size="11" fill="#374151">指标族：通吃率 · 介入率 · 违规率 · 下游任务成功率 · 回流率</text>
-    <text x="268" y="424" font-size="11" fill="#c2410c" font-weight="700">挂接 → 下游数据收益</text>
-    <!-- ===== 右列：支撑体系 ===== -->
-    <!-- L3 成本 -->
-    <rect x="730" y="76" width="186" height="64" rx="8" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
-    <text x="823" y="96" text-anchor="middle" font-size="11.5" fill="#6d28d9" font-weight="700">性能成本（横切）</text>
-    <text x="823" y="116" text-anchor="middle" font-size="10.5" fill="#374151">单样本耗时 · 吞吐</text>
-    <text x="823" y="132" text-anchor="middle" font-size="10.5" fill="#374151">算力占用 · 单位成本</text>
-    <!-- Golden Set -->
-    <rect x="730" y="156" width="186" height="80" rx="8" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
-    <text x="823" y="176" text-anchor="middle" font-size="11.5" fill="#334155" font-weight="700">Golden Set 回归</text>
-    <text x="823" y="194" text-anchor="middle" font-size="10.5" fill="#374151">发布前跑 Golden Set</text>
-    <text x="823" y="210" text-anchor="middle" font-size="10.5" fill="#374151">防质量倒退</text>
-    <text x="823" y="226" text-anchor="middle" font-size="10.5" fill="#6d28d9">（挂接 S2 评测体系）</text>
-    <!-- 评测隔离 -->
-    <rect x="730" y="260" width="186" height="80" rx="8" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
-    <text x="823" y="280" text-anchor="middle" font-size="11.5" fill="#334155" font-weight="700">评测集隔离与泄漏防控</text>
-    <text x="823" y="298" text-anchor="middle" font-size="10.5" fill="#374151">训练 / 验证 / 测试 / Golden</text>
-    <text x="823" y="314" text-anchor="middle" font-size="10.5" fill="#374151">四层隔离，禁止交叉污染</text>
-    <text x="823" y="330" text-anchor="middle" font-size="10.5" fill="#6d28d9">（挂接 S2 评测体系）</text>
-    <!-- Badcase -->
-    <rect x="730" y="356" width="186" height="80" rx="8" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
-    <text x="823" y="376" text-anchor="middle" font-size="11.5" fill="#b91c1c" font-weight="700">Badcase 回流</text>
-    <text x="823" y="394" text-anchor="middle" font-size="10.5" fill="#374151">S2 / S3 拦截样本</text>
-    <text x="823" y="410" text-anchor="middle" font-size="10.5" fill="#374151">→ 打回产线算子迭代</text>
-    <text x="823" y="426" text-anchor="middle" font-size="10.5" fill="#374151">→ 重跑后复检</text>
-    <!-- ===== 支撑体系总线（紫虚线，纯图形、无间隙内文字） ===== -->
-    <path d="M 730,108 L 708,108 L 708,386 L 690,386" fill="none" stroke="#7c3aed" stroke-width="1.5" stroke-dasharray="6,3"/>
-    <path d="M 708,124 L 690,124" fill="none" stroke="#7c3aed" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#mP)"/>
-    <path d="M 708,255 L 690,255" fill="none" stroke="#7c3aed" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#mP)"/>
-    <path d="M 730,196 L 708,196" fill="none" stroke="#7c3aed" stroke-width="1.5" stroke-dasharray="6,3"/>
-    <path d="M 730,300 L 708,300" fill="none" stroke="#7c3aed" stroke-width="1.5" stroke-dasharray="6,3"/>
-    <!-- ===== Badcase 回流（红虚线，走底部空白带） ===== -->
-    <path d="M 823,436 L 823,470 L 122,470 L 122,204" fill="none" stroke="#dc2626" stroke-width="2" stroke-dasharray="7,4" marker-end="url(#mR)"/>
-    <text x="430" y="455" text-anchor="middle" font-size="11" fill="#b91c1c" font-weight="700">打回产线迭代 · 重跑复检（回流闭环）</text>
-    <!-- ===== 底部结论 ===== -->
-    <rect x="24" y="492" width="892" height="58" rx="8" fill="#fffbeb" stroke="#d97706" stroke-width="1.5"/>
-    <text x="40" y="515" font-size="12" fill="#92400e" font-weight="700">三层递进逻辑：先保"不坏"（S1 自洽）→ 再证"准"（S2 GT）→ 最后证"有效"（S3 收益）</text>
-    <text x="40" y="537" font-size="11" fill="#92400e">成本横切全程采集；Golden Set + Badcase 回流 + 评测集四层隔离构成闭环：防倒退、可迭代、防污染</text>
-    <!-- ===== 图例 ===== -->
-    <text x="24" y="592" font-size="12" fill="#1f2937" font-weight="700">图例：</text>
-    <rect x="60" y="580" width="14" height="14" rx="3" fill="#059669"/>
-    <text x="80" y="592" font-size="10.5" fill="#374151">S1 自洽层</text>
-    <rect x="170" y="580" width="14" height="14" rx="3" fill="#2563eb"/>
-    <text x="190" y="592" font-size="10.5" fill="#374151">S2 精度层（三套 GT）</text>
-    <rect x="330" y="580" width="14" height="14" rx="3" fill="#ea580c"/>
-    <text x="350" y="592" font-size="10.5" fill="#374151">S3 收益层（训练回归）</text>
-    <rect x="500" y="580" width="14" height="14" rx="3" fill="#7c3aed"/>
-    <text x="520" y="592" font-size="10.5" fill="#374151">紫虚线＝支撑体系（成本横切三层；Golden/隔离挂 S2）</text>
-    <rect x="780" y="580" width="14" height="14" rx="3" fill="#dc2626"/>
-    <text x="800" y="592" font-size="10.5" fill="#374151">红虚线＝Badcase 回流</text>
-  </svg>
-</div>
+![通用数据产出衡量体系：三层质量递进（自洽 → GT 验证 → 训练收益）· 成本横切 · 回归闭环](../assets/embodied-metrics-system.svg)
 
 **指标口径速查**（上图指标族的一句话口径，与学习库《案例-通用具身数据管线》· 指标口径总表对齐）：
 
