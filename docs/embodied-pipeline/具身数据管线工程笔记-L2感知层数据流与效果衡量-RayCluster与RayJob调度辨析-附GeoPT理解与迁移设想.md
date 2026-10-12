@@ -1,6 +1,6 @@
 # 具身数据管线工程笔记：四层蓝图、感知层模型选型与产出衡量、RayCluster 与 RayJob 调度辨析、GeoPT 理解与迁移设想
 
-> **记录日期**：2026-09-29 · 修订 2026-10-11（增补业界实证：选型佐证、显存预算、§2.4 执行形态辨析、§1.1 LeRobot v3.0 落盘样例、管线全景补数据仿真源、§1.3 图示改外链 SVG 修复 GitHub 渲染）
+> **记录日期**：2026-09-29 · 修订 2026-10-11（增补业界实证：选型佐证、显存预算、§2.4 执行形态辨析、§1.1 LeRobot v3.0 落盘样例、管线全景补数据仿真源、§1.3 图示改外链 SVG 修复 GitHub 渲染）· 修订 2026-10-12（新增 §1.1.1 入口数据源：数据金字塔，三层明细整合于图示；整合 LeRobot v3.0 出口格式至 §1.1.2 统一小节：字段定义、落盘样例与单帧示例合并去重，路径模板与 info.json 键名校正为源码口径）
 > **背景**：围绕具身数据工程的三部分内容：一、具身数据管线四层蓝图与感知层模型选型、产出衡量；二、RayCluster 与 RayJob 调度辨析；三、GeoPT（*Lifted Geometric Pre-Training for Physics Simulation*，arXiv 2602.20399）理解与迁移设想。
 > **关联**：三章各有调研底稿细化——[调研笔记-01 · 模型选型](调研笔记-01-具身数据处理模型-场景化选型与管线结合.md)、[调研笔记-02 · Ray 框架](调研笔记-02-Ray分布式框架调研与管线应用.md)、[调研笔记-03 · GeoPT](调研笔记-03-GeoPT理解与迁移设想.md)；[调研笔记-04 · 阿里云 EMR 实践](调研笔记-04-阿里云EMR-Serverless-Spark-Ray具身数据管线最佳实践拆解.md)跨第一、二章作业界实证底稿（选型佐证 + 执行形态对照）。
 
@@ -15,7 +15,7 @@
 ### 1.1 管线全景：通用 8 步蓝图
 
 ```text
-输入源
+输入源（数据金字塔全景见 1.1.1）
 ├─ 第一视角视频（AR 眼镜 / 头显 / 互联网 ego 视频）
 └─ 数据仿真（Isaac Sim / MuJoCo 仿真器 · 渲染自带真值 GT · 域随机化 · Sim2Real 域差）
       └─ 仿真支路：真值自带 → 跳过 L2 感知重建，汇入 L4 统一封装；另作 S2 仿真 GT 主力（见 1.3）
@@ -41,7 +41,24 @@
 LeRobotDataset v3.0
 ```
 
-**出口字段级定义**（LeRobotDataset v3.0 · 业界实证口径）：
+### 1.1.1 入口数据源：数据金字塔
+
+> 行业共识是「数据金字塔」三层：顶层真机遥操作（精度最高、成本最高）、中层仿真合成（可扩展性最强）、底层人类行为 / 互联网视频（规模最大、成本最低）——三者组合使用才能同时满足**动作精度 × 场景多样性**的双重要求；本文管线处理的正是第三层「人类视频源」，经 L2 感知重建抬升为机器人可消费格式。
+
+![入口数据源数据金字塔：真机遥操作/仿真合成/人类视频三层组合，精度成本自顶向下递减、规模泛化递增；三层明细（采集方式/代表数据集/优势/局限/管线角色）整合于图内卡片](../assets/embodied-data-pyramid.svg)
+
+**开源数据集复用**（拿来即用层）：Open X-Embodiment、AgiBot World、RoboMIND、BridgeData V2、LeRobot Hub 数据集等可直接作训练 / 评测输入；注意各数据集**动作空间与文件格式不兼容**（LIBERO 仿真 vs RoboTwin 双臂 vs AgiBot World 真机），不能只看轨迹数决定能否混训——数据平台侧的经典归一化问题。
+
+**2026 动向**：
+
+- 「无本体」采集路线兴起：UMI、数据手套、头戴第一视角——解除数据生产与机器人本体的强绑定，降低设备门槛；
+- 数据产业规模化：真机采集外包大军、专业数据服务商（「卖数据比卖机器人先赚钱」）——供给侧决定金字塔顶层的扩张速度。
+
+### 1.1.2 出口数据格式：LeRobotDataset v3.0
+
+> L4 出口的字段定义与落盘结构（口径 = LeRobot main 源码 + EMR 实践实际产出）。核心设计一句话：**时序数值进 Parquet、视频进 MP4、Parquet 只存视频引用（路径 + 帧时间戳）而不存图像像素**——分布式写数据时不会被图像 IO 拖垮；产出可直接被 LeRobot 框架加载，训练 ACT / Diffusion Policy / VLA 策略。
+
+**字段级定义**：
 
 - `state`（108 维）= `[left_hand(54), right_hand(54)]`，每手 54 = `wrist_pos(3) + wrist_rot_6d(6) + mano_joints(45)`
   - 腕位置 3 维 = (x, y, z)；腕旋转 6 维连续表示（回归比欧拉角/四元数稳定，见附录「旋转 6D」）；45 = MANO 15 个手指关节 × 3 维轴角，腕旋转已单列为 rot_6d、不重复计数
@@ -50,28 +67,90 @@ LeRobotDataset v3.0
 - 载体三件套：`meta/`（info / stats / tasks / episodes）+ `data/`（帧级 Parquet）+ `videos/`（H.264 MP4）
   - `meta/` 存数据集元信息，语言指令在 tasks.parquet 里编号成 task_index；`data/` 每帧一行（state / action / task_index / timestamp）；`videos/` 存压缩观测视频，帧与行靠 index 对齐
 
-**落盘样例**（v3.0 目录与各文件内容；口径 = LeRobot main 源码 + EMR 实践实际产出）：
+**目录结构**（多路相机示意：ego 第一视角 + wrist 腕部；本管线单 ego 相机时省略 wrist 分支）：
 
 ```text
-dataset/
+embodied_lerobot_dataset/
 ├── meta/
-│   ├── info.json
-│   ├── stats.json
-│   ├── tasks.parquet
-│   └── episodes/chunk-000/file-000.parquet
-├── data/chunk-000/file-000.parquet
-└── videos/observation.images.ego/chunk-000/file-000.mp4
+│   ├── info.json                    # 数据集 schema、fps、版本、路径模板
+│   ├── stats.json                   # 全特征均值/方差，训练归一化用
+│   ├── tasks.parquet                # task_index ↔ 任务文本（VLA 语言条件）
+│   └── episodes/chunk-000/file-000.parquet   # 每集一行：起始帧、任务 id、长度 + 定位列
+├── data/
+│   └── chunk-000/file-000.parquet   # 核心时序表，一行 = 一帧
+└── videos/
+    ├── observation.images.ego/chunk-000/file-000.mp4    # 第一视角相机视频，H.264 1280×720@30fps，多集连续编码
+    └── observation.images.wrist/chunk-000/file-000.mp4  # 腕部相机视频
 ```
 
-| 文件 | 内容 |
-| --- | --- |
-| `meta/info.json` | 数据集级元信息：`codebase_version: "v3.0"`、fps、总集数/总帧数、特征定义（如 observation.state 108 维） |
-| `meta/tasks.parquet` | 指令编号表，每行 `task_index ↔ task` 文本（EMR 实践为占位指令「执行操作」，L3 由 VLM 填真指令） |
-| `meta/episodes/chunk-000/file-000.parquet` | 每集一行：`episode_index · tasks · length` + 定位列——本集数据所在的 `data/chunk_index + file_index`、每个视频的 `chunk_index + file_index` 与集内时间段 `from_timestamp → to_timestamp` |
-| `data/chunk-000/file-000.parquet` | 帧级表，每帧一行：`index`（全局帧号）· `episode_index` · `frame_index`（集内帧号）· `task_index` · `timestamp`（集内秒）· `observation.state`(108) · `observation.action`(108) |
-| `videos/observation.images.ego/chunk-000/file-000.mp4` | 多集连续编码的 H.264（1280×720@30fps）；读取时按 episodes 表的时间段切分，帧与数据行靠 episode_index + frame_index 对齐 |
+**meta/info.json 示例**（schema 定义；`observation.camera_pose` 为本管线扩展字段）：
 
-- **v3.0 相对 v2.1 的关键变化**：文件从「一集一文件」（`episode_000000.parquet` / `.mp4`）改为「多集合并、按大小滚动开新文件」（data ~100 MB / video ~200 MB 满即开 file-001，chunk 目录上限 1000 个文件）；meta 从 JSONL 三件套（episodes / tasks / episodes_stats）改为 Parquet。动因：海量集数下小文件爆炸（百万集 × 3 相机 ≈ 400 万+ 文件，对象存储 listing 与随机读 IO 都会被拖垮），合并文件 + Parquet meta 面向流式训练设计——对象存储小文件问题正是数据平台侧的经典工程约束。
+```json
+{
+  "codebase_version": "v3.0",
+  "robot_type": "human_egocentric",
+  "fps": 30,
+  "total_episodes": 200,
+  "total_frames": 360000,
+  "total_tasks": 2,
+  "features": {
+    "observation.images.ego": {
+      "dtype": "video",
+      "shape": [3, 720, 1280],
+      "names": ["channel", "height", "width"]
+    },
+    "observation.state": {
+      "dtype": "float32",
+      "shape": [108],
+      "names": ["left_hand(54)", "right_hand(54)"]
+    },
+    "observation.camera_pose": {
+      "dtype": "float32",
+      "shape": [7],
+      "description": "MegaSAM 输出相机外参：x,y,z + 四元数(w,x,y,z)"
+    },
+    "action": { "dtype": "float32", "shape": [108] },
+    "episode_index": { "dtype": "int64", "shape": [] },
+    "frame_index": { "dtype": "int64", "shape": [] },
+    "timestamp": { "dtype": "float32", "shape": [] },
+    "next.done": { "dtype": "bool", "shape": [] }
+  },
+  "data_path": "data/chunk-{chunk_index:03d}/file-{file_index:03d}.parquet",
+  "video_path": "videos/{video_key}/chunk-{chunk_index:03d}/file-{file_index:03d}.mp4"
+}
+```
+
+> 要点：管线里 MegaSAM 算出的相机位姿（平移 3 维 + 四元数 4 维）以扩展字段 `observation.camera_pose` 塞进 LeRobot——原生格式允许扩展观测字段，VLA 策略可据此消费 3D 几何先验；108 维口径见上方字段级定义（wrist_pos 3 + wrist_rot_6d 6 + mano_joints 45，左右手各 54）。
+
+**data/chunk-000/file-000.parquet 单行样例**（Parquet 列式存储，逻辑一行 = 一帧）：
+
+| 字段 | 样例值 | 说明 |
+| --- | --- | --- |
+| index | 6005 | 全局帧号 |
+| episode_index | 0 | 属于第 0 条 episode |
+| frame_index | 5 | episode 内第 5 帧 |
+| task_index | 0 | 关联 meta/tasks.parquet 的任务编号 |
+| timestamp | 0.5 | episode 内时间（秒） |
+| observation.images.ego | `{"path":"videos/observation.images.ego/chunk-000/file-000.mp4","timestamp":0.5}` | VideoFrame 结构体：视频路径 + 帧时间戳，**不存图片像素** |
+| observation.state | `[0.01, 0.22, ...]`（108 维） | 手部 MANO 姿态：wrist_pos + wrist_rot_6d + mano_joints（左右各 54） |
+| observation.camera_pose | `[0.42, 0.11, 0.73, 0.99, 0.01, 0.03, 0.02]` | MegaSAM 输出：世界系平移 3 维 + 四元数 4 维 |
+| action | `[0.02, 0.23, ...]`（108 维） | 下一帧目标 state，VLA / Diffusion Policy 的监督信号 |
+| next.done | false | 是否 episode 结束，末行 true |
+
+**meta/ 各文件职责**：
+
+- `info.json` / `stats.json`：数据集级 schema（见上示例）与全特征统计（训练归一化用）
+- `tasks.parquet`：指令编号表，每行 `task_index ↔ task` 文本，内容示意见下
+- `episodes/…/file-000.parquet`：每集一行 `episode_index · tasks · length` + 定位列——本集数据所在的 `data/chunk_index + file_index`、每个视频的 `chunk_index + file_index` 与集内时间段 `from_timestamp → to_timestamp`；多集合并的 data / video 文件靠它定位集边界，帧与数据行靠 `episode_index + frame_index` 对齐
+
+**meta/tasks.parquet 内容示意**（v3 为 Parquet，此处按行示意；真指令由 L3 VLM 生成后回填，EMR 实践为占位指令「执行操作」）：
+
+```text
+{"task_index": 0, "task": "拿起红色杯子放到桌面右侧"}
+{"task_index": 1, "task": "打开抽屉，取出螺丝刀"}
+```
+
+- **v3.0 相对 v2.1 的关键变化**：文件从「一集一文件」（`episode_000000.parquet` / `.mp4`）改为「多集合并、按大小滚动开新文件」（data ~100 MB / video ~200 MB 满即开 file-001，chunk 目录上限 1000 个文件）；meta 从 JSONL 三件套（episodes / tasks / episodes_stats）改为 Parquet。动因：海量集数下小文件爆炸（百万集 × 3 相机 ≈ 400 万+ 文件，对象存储 listing 与随机读 IO 都会被拖垮），合并文件 + Parquet meta 面向流式训练设计——对象存储小文件问题正是数据平台侧的经典工程约束。v3.0 不向后兼容 v2.1，官方提供 `convert_dataset_v21_to_v30` 迁移脚本。
 
 ### 1.2 感知层（L2）模型选型：分场景的模型与数据流
 
@@ -126,7 +205,7 @@ dataset/
 
 ![通用数据产出衡量体系：三层质量递进（自洽 → GT 验证 → 训练收益）· 成本横切 · 回归闭环](../assets/embodied-metrics-system.svg)
 
-**指标口径速查**（上图指标族的一句话口径，与学习库《案例-通用具身数据管线》· 指标口径总表对齐）：
+**指标口径速查**（上图指标族的一句话口径）：
 
 | 层 | 指标 | 口径 |
 | --- | --- | --- |
@@ -221,7 +300,7 @@ LeRobotDataset v3.0
 
 - **两级缓存弥合起停开销**：模型权重（~4.5 GB）与 CUDA 扩展编译产物做节点级持久缓存（`/tmp/vitra_cache/`，跨 Ray session 复用），OSS 做二级缓存兜底跨集群冷启动——命中节点缓存秒级恢复，把起停形态最痛的加载成本压到可接受。
 - **教程级简化的极致**：该实践把 L3 等价阶段（动作分割）直接放在 CPU 头节点 driver 进程顺序执行——单视频粒度够用；多源并发产数时才需要 2.3 的分层形态。
-- **为什么这反而是 Ray 的加分项**：两种形态在同一套 Ray API 下只是部署选择（Actor 常驻 vs remote function 起停、RayCluster vs RayJob），不需要换技术栈——形态随规模演进，这正是选 Ray 的理由之一。
+- **形态随规模演进、不换技术栈**：两种形态在同一套 Ray API 下只是部署选择（Actor 常驻 vs remote function 起停、RayCluster vs RayJob）——形态可以随规模演进，这正是选 Ray 的理由之一。
 
 ---
 

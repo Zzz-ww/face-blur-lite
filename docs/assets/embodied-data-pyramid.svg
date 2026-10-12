@@ -1,0 +1,76 @@
+<svg width="940" height="548" viewBox="0 0 940 548" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'PingFang SC',system-ui,sans-serif">
+  <!-- 卡片底色 + 标题 -->
+  <rect x="0" y="0" width="940" height="548" rx="12" fill="#f6f7f9"/>
+  <text x="24" y="30" font-size="16" fill="#1f2937" font-weight="700">入口数据源：数据金字塔</text>
+  <text x="24" y="52" font-size="13" fill="#6b7280">三层共识：精度 / 成本 自顶向下递减 · 规模 / 泛化 自顶向下递增 · 工业界组合使用（2026）</text>
+
+  <!-- ===== 金字塔示意 ===== -->
+  <rect x="280" y="72" width="380" height="28" rx="4" fill="#2563eb"/>
+  <text x="470" y="91" text-anchor="middle" font-size="12.5" fill="#fff" font-weight="600">顶层 · 真机遥操作（精度最高 · 成本最高）</text>
+  <rect x="180" y="102" width="580" height="28" rx="2" fill="#059669"/>
+  <text x="470" y="121" text-anchor="middle" font-size="12.5" fill="#fff" font-weight="600">中层 · 仿真合成（可扩展性最强 · GT 免费）</text>
+  <rect x="80" y="132" width="780" height="28" rx="3" fill="#d97706"/>
+  <text x="470" y="151" text-anchor="middle" font-size="12.5" fill="#fff" font-weight="600">底层 · 人类行为 / 互联网视频（规模最大 · 成本最低）</text>
+  <text x="80" y="172" font-size="11" fill="#6b7280">▲ 动作精度 / 采集成本 / 单位数据成本</text>
+  <text x="860" y="172" text-anchor="end" font-size="11" fill="#6b7280">数据规模 / 场景泛化性 / 采集门槛低 ▼</text>
+
+  <!-- ===== 三层明细卡片 ===== -->
+  <!-- ① 真机遥操作 -->
+  <rect x="24" y="186" width="288" height="276" rx="8" fill="#fff" stroke="#dbe3ee"/>
+  <rect x="24" y="186" width="288" height="4" rx="2" fill="#2563eb"/>
+  <text x="38" y="212" font-size="14" fill="#1d4ed8" font-weight="700">① 真机遥操作数据</text>
+  <text x="38" y="232" font-size="10.5" fill="#374151">采集：遥操作设备操控机器人（ALOHA</text>
+  <text x="38" y="249" font-size="10.5" fill="#374151">双臂 / VR / 手柄 / 空间鼠标），同步记录</text>
+  <text x="38" y="266" font-size="10.5" fill="#374151">关节状态 + 多视角观测 + 动作</text>
+  <text x="38" y="283" font-size="10.5" fill="#374151">无本体变体：UMI 手持夹爪 · 遥操作手套</text>
+  <text x="38" y="300" font-size="10.5" fill="#374151">代表：Open X-Embodiment / RT-X</text>
+  <text x="38" y="317" font-size="10.5" fill="#374151">（22 种本体 · 60+ 数据集汇合）</text>
+  <text x="38" y="334" font-size="10.5" fill="#374151">DROID · BridgeData V2</text>
+  <text x="38" y="351" font-size="10.5" fill="#374151">AgiBot World（100 万+ 轨迹）</text>
+  <text x="38" y="368" font-size="10.5" fill="#374151">RoboMIND（107k 轨迹 · 4 本体 · 479 任务）</text>
+  <text x="38" y="385" font-size="10.5" fill="#047857" font-weight="600">优势：动作监督精确 · 本体对齐 · 免伪标签重建</text>
+  <text x="38" y="402" font-size="10.5" fill="#b91c1c" font-weight="600">局限：采集成本高 · 人力瓶颈 · 多样性受限</text>
+  <text x="38" y="419" font-size="10.5" fill="#1d4ed8">角色：VLA 训练主力 · 评测基准；L4 封装</text>
+  <text x="38" y="436" font-size="10.5" fill="#1d4ed8">为 LeRobot 后直接进训练</text>
+
+  <!-- ② 仿真合成 -->
+  <rect x="326" y="186" width="288" height="276" rx="8" fill="#fff" stroke="#dbe3ee"/>
+  <rect x="326" y="186" width="288" height="4" rx="2" fill="#059669"/>
+  <text x="340" y="212" font-size="14" fill="#047857" font-weight="700">② 仿真合成数据</text>
+  <text x="340" y="232" font-size="10.5" fill="#374151">采集：物理仿真器程序化生成任务场景</text>
+  <text x="340" y="249" font-size="10.5" fill="#374151">Isaac Sim/Lab·MuJoCo·Genesis·SAPIEN</text>
+  <text x="340" y="266" font-size="10.5" fill="#374151">渲染自带真值 GT：深度 / 分割 / 6DoF /</text>
+  <text x="340" y="283" font-size="10.5" fill="#374151">相机位姿 / 接触力；配合域随机化</text>
+  <text x="340" y="300" font-size="10.5" fill="#374151">代表：LIBERO（130 语言条件任务）</text>
+  <text x="340" y="317" font-size="10.5" fill="#374151">RoboTwin 2.0（双臂 + 强域随机化）· RLBench</text>
+  <text x="340" y="334" font-size="10.5" fill="#047857" font-weight="600">优势：GT 免费 · 可并行无限扩展 · 长尾可控</text>
+  <text x="340" y="351" font-size="10.5" fill="#b91c1c" font-weight="600">局限：Sim-to-Real gap（摩擦 / 形变 / 流体</text>
+  <text x="340" y="368" font-size="10.5" fill="#b91c1c">等物理偏差），策略上真机易失效</text>
+  <text x="340" y="385" font-size="10.5" fill="#047857">角色：预训练 / 中训练增强；S2 仿真 GT</text>
+  <text x="340" y="402" font-size="10.5" fill="#047857">主力（三套 GT 第一套，见 1.3）；</text>
+  <text x="340" y="419" font-size="10.5" fill="#047857">自带 GT → 跳过 L2 重建直接汇入 L4</text>
+
+  <!-- ③ 人类视频 -->
+  <rect x="628" y="186" width="288" height="276" rx="8" fill="#fff" stroke="#dbe3ee"/>
+  <rect x="628" y="186" width="288" height="4" rx="2" fill="#d97706"/>
+  <text x="642" y="212" font-size="14" fill="#b45309" font-weight="700">③ 人类行为 / 互联网视频</text>
+  <text x="642" y="232" font-size="10.5" fill="#374151">采集：ego 第一视角（头戴 / AR 眼镜）+</text>
+  <text x="642" y="249" font-size="10.5" fill="#374151">互联网视频；无本体：UMI · 数据手套</text>
+  <text x="642" y="266" font-size="10.5" fill="#374151">（手部轨迹 + 操作力度）</text>
+  <text x="642" y="283" font-size="10.5" fill="#374151">代表：Ego4D · EPIC-KITCHENS · Ego-Exo4D；</text>
+  <text x="642" y="300" font-size="10.5" fill="#374151">商业视频检索服务（宣称百亿级真实场景）</text>
+  <text x="642" y="317" font-size="10.5" fill="#047857" font-weight="600">优势：规模海量 · 泛化强 · 成本最低；</text>
+  <text x="642" y="334" font-size="10.5" fill="#047857">MIT 2026 Human Scale：ego 预训练可超真机</text>
+  <text x="642" y="351" font-size="10.5" fill="#b91c1c" font-weight="600">局限：缺位姿 / 触觉 / 力矩精确标注；</text>
+  <text x="642" y="368" font-size="10.5" fill="#b91c1c">embodiment gap（人手 ≠ 机器本体）、</text>
+  <text x="642" y="385" font-size="10.5" fill="#b91c1c">需大量清洗与动作对齐</text>
+  <text x="642" y="402" font-size="10.5" fill="#374151">角色：低成本扩量 · 预训练；必须经 3D</text>
+  <text x="642" y="419" font-size="10.5" fill="#374151">重建伪标签管线抬升：HaWoR + MoGe-2 +</text>
+  <text x="642" y="436" font-size="10.5" fill="#374151">MegaSAM → LeRobotDataset（1.1.2）</text>
+  <text x="642" y="453" font-size="10.5" fill="#b45309" font-weight="600">——本管线（VITRA / EMR 思路）的输入源</text>
+
+  <!-- ===== 底部结论 ===== -->
+  <rect x="24" y="476" width="892" height="54" rx="8" fill="#eef2ff" stroke="#c7d2fe"/>
+  <text x="40" y="498" font-size="12" fill="#3730a3" font-weight="700">结论：三层是组合关系而非替代——真机保精度、仿真扩规模、人类视频降成本扩泛化</text>
+  <text x="40" y="518" font-size="11" fill="#3730a3">人类视频是唯一需「三维重建 + 动作对齐」预处理才能被 VLA 消费的源——这正是具身数据管线的核心增值点</text>
+</svg>
