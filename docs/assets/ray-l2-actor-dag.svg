@@ -1,0 +1,104 @@
+<svg width="960" height="820" viewBox="0 0 960 820" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'PingFang SC',system-ui,sans-serif">
+  <!-- 卡片底色 + 标题 -->
+  <rect x="0" y="0" width="960" height="820" rx="12" fill="#f6f7f9"/>
+  <text x="24" y="30" font-size="16" fill="#1f2937" font-weight="700">L2 感知重建层 · Ray Actor 调度时序（单分片 DAG）</text>
+  <text x="24" y="50" font-size="11" fill="#6b7280">底稿：调研笔记-02 §6.2 依赖判定 + §6.3 时序 · 分片粒度：常驻池设计 3~10s / 片（EMR 起停形态为 20s clips——粒度 = 调度开销 vs 单分片超时 / 重试代价的权衡）</text>
+
+  <!-- 依赖色标图例 -->
+  <rect x="24" y="60" width="10" height="10" rx="2" fill="#0284c7"/><text x="40" y="69" font-size="11" fill="#4b5563">并行启动</text>
+  <rect x="118" y="60" width="10" height="10" rx="2" fill="#dc2626"/><text x="134" y="69" font-size="11" fill="#4b5563">强串行</text>
+  <rect x="190" y="60" width="10" height="10" rx="2" fill="#d97706"/><text x="206" y="69" font-size="11" fill="#4b5563">弱依赖（阻塞）</text>
+  <rect x="300" y="60" width="10" height="10" rx="2" fill="#7c3aed"/><text x="316" y="69" font-size="11" fill="#4b5563">后处理回注</text>
+  <rect x="396" y="60" width="10" height="10" rx="2" fill="#059669"/><text x="412" y="69" font-size="11" fill="#4b5563">CPU 校验门</text>
+  <rect x="492" y="60" width="10" height="10" rx="2" fill="#6b7280"/><text x="508" y="69" font-size="11" fill="#4b5563">出口分流</text>
+
+  <!-- ===== T0 并行启动 ===== -->
+  <rect x="24" y="84" width="54" height="116" rx="6" fill="#e0f2fe"/>
+  <text x="51" y="147" text-anchor="middle" font-size="13" font-weight="700" fill="#0369a1">T0</text>
+  <rect x="88" y="84" width="848" height="116" rx="6" fill="#fff" stroke="#bae6fd"/>
+  <rect x="88" y="84" width="4" height="116" rx="2" fill="#0284c7"/>
+  <text x="104" y="106" font-size="12.5" font-weight="700" fill="#0369a1">并行启动 · 最大并行窗口（三者只读 L1 RGB，互无输入依赖，充分利用多 GPU）</text>
+
+  <rect x="100" y="118" width="269" height="74" rx="6" fill="none" stroke="#0284c7" stroke-dasharray="4 3"/>
+  <text x="112" y="138" font-size="12" font-weight="700" fill="#1f2937">DepthActor（GPU）</text>
+  <text x="112" y="156" font-size="10.5" fill="#374151">MoGe + DAv2 逐帧深度推理</text>
+  <text x="112" y="172" font-size="10.5" fill="#374151">出：深度图 · 法线 · FoV ·</text>
+  <text x="112" y="186" font-size="10.5" fill="#374151">视差（互检用）</text>
+
+  <rect x="377" y="118" width="269" height="74" rx="6" fill="none" stroke="#0284c7" stroke-dasharray="4 3"/>
+  <text x="389" y="138" font-size="12" font-weight="700" fill="#1f2937">HandActor · Stage1（GPU）</text>
+  <text x="389" y="156" font-size="10.5" fill="#374151">WiLoR + MANO 拟合</text>
+  <text x="389" y="172" font-size="10.5" fill="#374151">出：相机系手部 54 维原始值</text>
+
+  <rect x="654" y="118" width="269" height="74" rx="6" fill="none" stroke="#0284c7" stroke-dasharray="4 3"/>
+  <text x="666" y="138" font-size="12" font-weight="700" fill="#1f2937">SegTrackActor（GPU）</text>
+  <text x="666" y="156" font-size="10.5" fill="#374151">首帧 EgoHOS / Grounded-SAM →</text>
+  <text x="666" y="172" font-size="10.5" fill="#374151">SAM2 时序传播 → TAPIR 接触点</text>
+  <text x="666" y="186" font-size="10.5" fill="#374151">出：时序 mask · 接触边界轨迹</text>
+
+  <text x="512" y="218" text-anchor="middle" font-size="14" fill="#0284c7">▼ <tspan font-size="11" fill="#6b7280">DepthActor 完成全片段深度推理</tspan></text>
+
+  <!-- ===== T1 强串行 ===== -->
+  <rect x="24" y="226" width="54" height="100" rx="6" fill="#fee2e2"/>
+  <text x="51" y="281" text-anchor="middle" font-size="13" font-weight="700" fill="#b91c1c">T1</text>
+  <rect x="88" y="226" width="848" height="100" rx="6" fill="#fff" stroke="#fecaca"/>
+  <rect x="88" y="226" width="4" height="100" rx="2" fill="#dc2626"/>
+  <text x="104" y="248" font-size="12.5" font-weight="700" fill="#b91c1c">强串行 · 等整段深度输出才能启动（全链路最大串行卡点）</text>
+  <rect x="100" y="258" width="620" height="44" rx="6" fill="none" stroke="#dc2626"/>
+  <text x="112" y="276" font-size="11.5" fill="#1f2937"><tspan font-weight="700">CamPoseActor</tspan>（GPU）：GeoCalib 内参 + MegaSaM / DROID-SLAM → camera_to_world[T,4,4]（+ 稀疏点云）</text>
+  <text x="112" y="294" font-size="11" fill="#b91c1c">← DepthActor 深度先验（SLAM 初始化 / 稠密约束）；深度输出同时送入 Obj6DoFActor（等 mask 就绪）</text>
+  <text x="104" y="318" font-size="11" fill="#6b7280">优化方向：增量 SLAM——深度逐帧流式送入（ray.wait 增量处理语义），消除整段深度等待、深度推理与轨迹求解流水线重叠</text>
+
+  <text x="512" y="344" text-anchor="middle" font-size="14" fill="#6b7280">▼ <tspan font-size="11">SegTrackActor 完成时序 mask、接触边界输出</tspan></text>
+
+  <!-- ===== T2 依赖触发 ===== -->
+  <rect x="24" y="352" width="54" height="96" rx="6" fill="#fef3c7"/>
+  <text x="51" y="405" text-anchor="middle" font-size="13" font-weight="700" fill="#b45309">T2</text>
+  <rect x="88" y="352" width="848" height="96" rx="6" fill="#fff" stroke="#fde68a"/>
+  <rect x="88" y="352" width="4" height="96" rx="2" fill="#d97706"/>
+  <text x="104" y="374" font-size="12.5" font-weight="700" fill="#b45309">依赖触发 · 等待 mask / 深度就绪</text>
+
+  <rect x="100" y="384" width="408" height="52" rx="6" fill="none" stroke="#d97706"/>
+  <text x="112" y="404" font-size="11.5" fill="#1f2937"><tspan font-weight="700">HandActor · Stage2</tspan>（GPU）：Masked DROID-SLAM 平滑（手部 mask 做遮挡屏蔽）</text>
+  <text x="112" y="422" font-size="11" fill="#b45309">← SegTrackActor 手部 mask（弱依赖阻塞点）</text>
+
+  <rect x="516" y="384" width="408" height="52" rx="6" fill="none" stroke="#d97706"/>
+  <text x="528" y="404" font-size="11.5" fill="#1f2937"><tspan font-weight="700">Obj6DoFActor</tspan>（GPU）：FoundationPose → obj_pose_cam[T,4,4]</text>
+  <text x="528" y="422" font-size="11" fill="#b45309">← DepthActor 深度 + SegTrackActor 物体 mask（RGB-D + ROI）</text>
+
+  <text x="512" y="466" text-anchor="middle" font-size="14" fill="#6b7280">▼ <tspan font-size="11">CamPoseActor 完成，输出 camera_to_world 时序矩阵</tspan></text>
+
+  <!-- ===== T3 回注 ===== -->
+  <rect x="24" y="474" width="54" height="56" rx="6" fill="#ede9fe"/>
+  <text x="51" y="507" text-anchor="middle" font-size="13" font-weight="700" fill="#6d28d9">T3</text>
+  <rect x="88" y="474" width="848" height="56" rx="6" fill="#fff" stroke="#ddd6fe"/>
+  <rect x="88" y="474" width="4" height="56" rx="2" fill="#7c3aed"/>
+  <text x="104" y="496" font-size="12" font-weight="700" fill="#6d28d9">回注 camera_to_world（仅 CPU 后处理坐标变换，不回灌模型前向——防闭环误差放大）</text>
+  <text x="104" y="516" font-size="11.5" fill="#374151">HandActor：相机系 54 维 → 世界系手部轨迹 ｜ Obj6DoFActor：obj_pose_cam → obj_pose_world</text>
+
+  <text x="512" y="548" text-anchor="middle" font-size="14" fill="#6b7280">▼ <tspan font-size="11">五个 Actor 输出全部就绪</tspan></text>
+
+  <!-- ===== T4 校验门 ===== -->
+  <rect x="24" y="556" width="54" height="56" rx="6" fill="#d1fae5"/>
+  <text x="51" y="589" text-anchor="middle" font-size="13" font-weight="700" fill="#047857">T4</text>
+  <rect x="88" y="556" width="848" height="56" rx="6" fill="#fff" stroke="#a7f3d0"/>
+  <rect x="88" y="556" width="4" height="56" rx="2" fill="#059669"/>
+  <text x="104" y="578" font-size="12" fill="#1f2937"><tspan font-weight="700">L2ConsistencyCheckTask</tspan>（CPU Ray Task，不占 GPU 显存）——五个 Actor 输出齐备后调度</text>
+  <text x="104" y="598" font-size="11.5" fill="#374151">世界系几何一致性校验 · 尺度漂移检测 · 重投影误差计算 → valid / badcase 标记（片段过滤）</text>
+
+  <text x="512" y="630" text-anchor="middle" font-size="14" fill="#6b7280">▼</text>
+
+  <!-- ===== T5 出口分流 ===== -->
+  <rect x="24" y="638" width="54" height="60" rx="6" fill="#e5e7eb"/>
+  <text x="51" y="672" text-anchor="middle" font-size="13" font-weight="700" fill="#374151">T5</text>
+  <rect x="88" y="638" width="848" height="60" rx="6" fill="#fff" stroke="#d1d5db"/>
+  <text x="104" y="662" font-size="12" fill="#047857" font-weight="700">通过：打包 L2 全部结构化时序数据 → 交 L3 RayJob（动作分割 + 语义标注）</text>
+  <text x="104" y="684" font-size="12" fill="#b91c1c" font-weight="700">失败：badcase 标记 → 回流（对象存储 + 队列）→ 分片级重跑 → 复检，不进入 L3</text>
+
+  <!-- ===== 数据传递纪律 ===== -->
+  <rect x="24" y="714" width="912" height="86" rx="6" fill="#eef2ff" stroke="#c7d2fe"/>
+  <text x="40" y="736" font-size="12" font-weight="700" fill="#3730a3">Actor 间数据传递纪律</text>
+  <text x="40" y="754" font-size="11" fill="#3730a3">小数据（MANO 参数 / 4×4 矩阵 / 时间戳 / 接触点坐标）→ Ray ObjectRef 直传（跨 Actor 引用不拷贝、可多 Actor 同读）</text>
+  <text x="40" y="772" font-size="11" fill="#3730a3">大数据（深度图 / mask / RGB 帧）→ 禁止跨 Actor 传张量，落盘共享存储（S3 / 节点 SSD）只传 {"path": …, "shape": …} 引用按需拉取，防 ObjectStore 内存打爆</text>
+  <text x="40" y="790" font-size="11" fill="#3730a3">中间产物按分片 ID 目录隔离、过检后自动清理；每分片处理完清空 Actor 内部时序状态（SAM2 memory bank / SLAM 窗口 / TAPIR 轨迹缓存），防跨分片泄漏</text>
+</svg>

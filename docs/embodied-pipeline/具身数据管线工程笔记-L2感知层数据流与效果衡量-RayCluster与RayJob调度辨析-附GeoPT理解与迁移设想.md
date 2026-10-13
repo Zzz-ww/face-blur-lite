@@ -1,6 +1,6 @@
 # 具身数据管线工程笔记：四层蓝图、感知层模型选型与产出衡量、RayCluster 与 RayJob 调度辨析、GeoPT 理解与迁移设想
 
-> **记录日期**：2026-09-29 · 修订 2026-10-11（增补业界实证：选型佐证、显存预算、§2.4 执行形态辨析、§1.1 LeRobot v3.0 落盘样例、管线全景补数据仿真源、§1.3 图示改外链 SVG 修复 GitHub 渲染）· 修订 2026-10-12（新增 §1.1.1 入口数据源：数据金字塔，三层明细整合于图示；整合 LeRobot v3.0 出口格式至 §1.1.2 统一小节：字段定义、落盘样例与单帧示例合并去重，路径模板与 info.json 键名校正为源码口径）
+> **记录日期**：2026-09-29 · 修订 2026-10-11（增补业界实证：选型佐证、显存预算、§2.4 执行形态辨析、§1.1 LeRobot v3.0 落盘样例、管线全景补数据仿真源、§1.3 图示改外链 SVG 修复 GitHub 渲染）· 修订 2026-10-12（新增 §1.1.1 入口数据源：数据金字塔，三层明细整合于图示；整合 LeRobot v3.0 出口格式至 §1.1.2 统一小节：字段定义、落盘样例与单帧示例合并去重，路径模板与 info.json 键名校正为源码口径）· 修订 2026-10-13（新增 §2.5 Ray 处理流程示例两张 SVG：端到端泳道 + L2 Actor 调度 DAG，底稿 = 调研笔记-04 §1-§3 / 调研笔记-02 §6；附录补 MotionLabel3D 词条）
 > **背景**：围绕具身数据工程的三部分内容：一、具身数据管线四层蓝图与感知层模型选型、产出衡量；二、RayCluster 与 RayJob 调度辨析；三、GeoPT（*Lifted Geometric Pre-Training for Physics Simulation*，arXiv 2602.20399）理解与迁移设想。
 > **关联**：三章各有调研底稿细化——[调研笔记-01 · 模型选型](调研笔记-01-具身数据处理模型-场景化选型与管线结合.md)、[调研笔记-02 · Ray 框架](调研笔记-02-Ray分布式框架调研与管线应用.md)、[调研笔记-03 · GeoPT](调研笔记-03-GeoPT理解与迁移设想.md)；[调研笔记-04 · 阿里云 EMR 实践](调研笔记-04-阿里云EMR-Serverless-Spark-Ray具身数据管线最佳实践拆解.md)跨第一、二章作业界实证底稿（选型佐证 + 执行形态对照）。
 
@@ -244,7 +244,7 @@ embodied_lerobot_dataset/
 
 ## 二、RayCluster 与 RayJob 的工程辨析
 
-> 管线各环节在 Ray 上有两种执行形态：常驻的 RayCluster 与按需提交的 RayJob。本章辨析两者的定义与对比维度，再看集群里常驻哪些角色，最后摊到 L1~L4 四层看各自的执行形态。
+> 管线各环节在 Ray 上有两种执行形态：常驻的 RayCluster 与按需提交的 RayJob。本章辨析两者的定义与对比维度，再看集群里常驻哪些角色，最后摊到 L1~L4 四层看各自的执行形态；2.5 再以两张流程图把两种形态落到具体执行流。
 
 ### 2.1 定义
 
@@ -301,6 +301,31 @@ LeRobotDataset v3.0
 - **两级缓存弥合起停开销**：模型权重（~4.5 GB）与 CUDA 扩展编译产物做节点级持久缓存（`/tmp/vitra_cache/`，跨 Ray session 复用），OSS 做二级缓存兜底跨集群冷启动——命中节点缓存秒级恢复，把起停形态最痛的加载成本压到可接受。
 - **教程级简化的极致**：该实践把 L3 等价阶段（动作分割）直接放在 CPU 头节点 driver 进程顺序执行——单视频粒度够用；多源并发产数时才需要 2.3 的分层形态。
 - **形态随规模演进、不换技术栈**：两种形态在同一套 Ray API 下只是部署选择（Actor 常驻 vs remote function 起停、RayCluster vs RayJob）——形态可以随规模演进，这正是选 Ray 的理由之一。
+
+### 2.5 Ray 处理流程示例：端到端泳道与 L2 Actor 调度 DAG
+
+> 两张图把前文两种执行形态落到具体执行流：图 A 对应 2.4 的起停形态（CPU 头节点承担全部 I/O 密集阶段、GPU worker 只跑推理），图 B 对应 2.3 的常驻 Actor 池形态（单分片内六类执行体的依赖时序）。底稿：[调研笔记-04](调研笔记-04-阿里云EMR-Serverless-Spark-Ray具身数据管线最佳实践拆解.md) §1-§3、[调研笔记-02](调研笔记-02-Ray分布式框架调研与管线应用.md) §6。
+
+#### 2.5.1 图 A · 端到端泳道（CPU / GPU 职责分域）
+
+![Ray 编排的具身数据管线端到端处理流程泳道图：输入源 → CPU Driver 预处理 → GPU Worker 三模型串行推理 → CPU Driver 动作分割与写出 → LeRobotDataset v3.0 与 badcase 回流](../assets/ray-pipeline-e2e-swimlane.svg)
+
+- 职责分域：发现 / 预处理 / 动作分割 / 写出全部在 CPU driver 进程；GPU 侧唯一入口是 `@ray.remote(num_gpus=1)`，每视频一次推理，`ray.get` 阻塞取回 MotionLabel3D——Ray 只做编排不做计算
+- 显存换吞吐：三模型合计 ~20 GB 同进程串行加载、加载下一个前 `del` + `empty_cache`，挤进单张 16 GB 卡（2.4 对照表的实例化）；代价是三阶段无法流水线并行
+- 预处理 IO 技巧：JPEG 帧落盘供 GPU 阶段复用、避免重复解码；长视频先提全部帧到共享目录，各 clip 用符号链接切分边界
+- 中间契约：Stage 1 → Stage 2 的数据契约是 MotionLabel3D（腕位置 / 旋转（轴角）/ MANO 关节姿态 + `camera_poses` + `camera_fov` + `valid` 掩码，双手数组补齐到 T 帧、缺失填零标 `valid=False`）；`rot_aa → rot_6d` 转换在写出侧完成，state 108 维口径见 1.1.2
+
+#### 2.5.2 图 B · L2 感知重建层单分片调度 DAG（常驻 Actor 池形态）
+
+![L2 感知重建层 Ray Actor 调度时序 DAG：T0 三 Actor 并行 → T1 相机位姿等整段深度 → T2 平滑与 6DoF 等 mask → T3 位姿回注 → T4 CPU 一致性校验门 → T5 通过交 L3 或 badcase 回流](../assets/ray-l2-actor-dag.svg)
+
+- 最大并行窗口（T0）：DepthActor / HandActor Stage1 / SegTrackActor 三者只读 L1 RGB、互无输入依赖，收到分片同时调度，充分利用多 GPU
+- 两条强串行依赖是吞吐瓶颈：CamPoseActor ← 整段深度先验（全链路最大卡点，优化方向是增量 SLAM——深度逐帧流式送入、`ray.wait` 增量语义，消除整段等待）；Obj6DoFActor ← 深度 + 物体 mask（FoundationPose 要 RGB-D + ROI）
+- HandActor 两段式弱依赖：Stage1 检测 + MANO 拟合随 T0 并行；Stage2 Masked DROID-SLAM 平滑等 SegTrack 手部 mask（遮挡屏蔽）
+- 回注红线（T3）：camera_to_world 只做 CPU 后处理坐标变换把手部 / 物体抬到世界系，禁止回灌上游模型前向——防闭环误差放大，同时保持各 Actor 无状态、中间结果可缓存
+- 质检门内嵌（T4/T5）：五个 Actor 输出齐备才调度 CPU 侧 L2ConsistencyCheckTask（几何一致性 / 尺度漂移 / 重投影误差）——通过交 L3 RayJob，失败标 badcase 回流分片级重跑
+- 数据传递纪律：小数据（MANO 参数、4×4 矩阵、时间戳、接触点）ObjectRef 直传；深度图 / mask / RGB 大张量禁止跨 Actor 传递，落盘共享存储只传 `{"path": …, "shape": …}` 引用——防 ObjectStore 内存打爆；每分片处理完清空 Actor 内部时序状态（SAM2 memory bank / SLAM 窗口 / TAPIR 轨迹缓存），防跨分片泄漏
+- 分片粒度权衡：常驻池设计取 3~10s / 片（防单分片推理过长致 Actor 超时、Ray 心跳丢失，也避免任务过小被调度开销淹没），EMR 起停形态取 20s clips——粒度是「调度开销 vs 单分片超时 / 重试代价」的权衡参数，两种形态各取其值
 
 ---
 
@@ -394,6 +419,7 @@ LeRobotDataset v3.0
 - **LeRobotDataset**：Hugging Face LeRobot 项目定义的机器人数据集格式，L4 封装出口（当前 v3.0）
 - **Data-Juicer**：阿里开源的一站式数据处理框架，L4 用它的清洗算子（去重 / 过滤 / 质检）
 - **VITRA**：微软研究院「第一视角视频 → VLA 训练数据」工作，阿里云 EMR 官方实践的技术思路来源（见 2.4）
+- **MotionLabel3D**：EMR 实践 Stage 1 三维重建的输出数据结构——左右手腕位置 / 旋转（轴角）/ MANO 关节姿态 + `camera_poses`[T,4,4] + `camera_fov` + `valid` 掩码，双手数组补齐到 T 帧、缺失帧填零标 `valid=False`（见 2.5.1）
 
 **衡量（1.3）**
 
