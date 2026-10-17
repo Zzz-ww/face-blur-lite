@@ -18,10 +18,10 @@ KubeRay（RayCluster/RayJob/RayService 三 CRD）、Kueue 调度器（ElasticQuo
 
 | 专题 | 状态 |
 | --- | --- |
-| 01-KubeRay控制面.md（CRD/worker 组/autoscaler） | 待写 |
-| 02-调度与多租户.md（Kueue/ElasticQuotaTree/优先级/抢占） | 待写 |
-| 03-任务状态机与容错.md（状态机/DLQ/检查点） | 待写 |
-| 04-PipelineSpec与编排DSL.md | 待写 |
+| [01-KubeRay控制面](01-KubeRay控制面.md)（CRD/reconcile/三层伸缩/GCS FT/高可用） | ✅ 已写（示例） |
+| [02-调度与多租户](02-调度与多租户.md)（四级调度链/Kueue 配额准入/优先级抢占/公平/多租户分池） | ✅ 已写 |
+| [03-任务状态机与容错](03-任务状态机与容错.md)（状态持久化/完整状态机/四级故障域/DLQ 实现/检查点恢复） | ✅ 已写 |
+| [04-PipelineSpec与编排DSL](04-PipelineSpec与编排DSL.md)（Schema/DSL 语法/提交期静态校验/声明式 reconcile/版本绑定） | ✅ 已写 |
 
 ## 5. 关键机制与质量门
 
