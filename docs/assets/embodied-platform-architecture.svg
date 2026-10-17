@@ -1,0 +1,94 @@
+<svg width="960" height="776" viewBox="0 0 960 776" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'PingFang SC',system-ui,sans-serif">
+  <rect x="0" y="0" width="960" height="776" rx="12" fill="#f6f7f9"/>
+  <text x="24" y="30" font-size="16" fill="#1f2937" font-weight="700">具身数据平台 · 总体架构（一个入口 + 六大域 + 三层横切）</text>
+  <text x="24" y="50" font-size="11" fill="#6b7280">数据集为中心 · 控制面/数据面分离 · 门禁驱动版本晋升 · 双流（数据流 + 元数据流）经血缘图关联</text>
+  <text x="24" y="68" font-size="10.5" fill="#6b7280">色标：棕 = 接入　红 = 生产（数据面）　绿 = 管控（控制面）/ 消费　蓝 = 治理　浅蓝 = 资产　回环 = Badcase 回流　虚线 = 横切</text>
+  <rect x="24" y="84" width="912" height="30" rx="7" fill="#4F6B9A"/>
+  <text x="480" y="103.5" text-anchor="middle" font-size="12.5" font-weight="600" fill="#ffffff">用户入口层：Web 控制台 · CLI · SDK · API 网关</text>
+  <text x="480" y="134" text-anchor="middle" font-size="11" fill="#6b7280">▼ <tspan font-size="10"></tspan></text>
+  <rect x="24" y="142" width="912" height="80" rx="8" fill="#ffffff" stroke="#E4E3DD"/>
+  <rect x="24" y="142" width="3" height="80" rx="1.5" fill="#9A6A2F"/>
+  <text x="40" y="179.0" font-size="12.5" font-weight="700" fill="#9A6A2F">① 接入域</text>
+  <text x="40" y="196.0" font-size="10.5" fill="#6b7280">采集工厂</text>
+  <rect x="196" y="154" width="326" height="22" rx="4" fill="#F7F7F5" stroke="#E4E3DD"/>
+  <text x="207" y="169" font-size="11.5" fill="#1f2937">多源接入（遥操作/第一视角/仿真/动捕/rosbag）</text>
+  <rect x="530" y="154" width="131" height="22" rx="4" fill="#F7F7F5" stroke="#E4E3DD"/>
+  <text x="541" y="169" font-size="11.5" fill="#1f2937">设备与机器人管理</text>
+  <rect x="669" y="154" width="206" height="22" rx="4" fill="#F7F7F5" stroke="#E4E3DD"/>
+  <text x="680" y="169" font-size="11.5" fill="#1f2937">数据上云 + schema 源头校验</text>
+  <rect x="196" y="184" width="90" height="22" rx="4" fill="#F7F7F5" stroke="#E4E3DD"/>
+  <text x="207" y="199" font-size="11.5" fill="#1f2937">原始数据湖</text>
+  <text x="480" y="242" text-anchor="middle" font-size="11" fill="#6b7280">▼ <tspan font-size="10">原始数据包</tspan></text>
+  <rect x="24" y="250" width="912" height="80" rx="8" fill="#ffffff" stroke="#E4E3DD"/>
+  <rect x="24" y="250" width="3" height="80" rx="1.5" fill="#A14E50"/>
+  <text x="40" y="287.0" font-size="12.5" font-weight="700" fill="#A14E50">② 生产域</text>
+  <text x="40" y="304.0" font-size="10.5" fill="#6b7280">数据面 · 算子流水线</text>
+  <rect x="196" y="262" width="185" height="22" rx="4" fill="#F7F7F5" stroke="#E4E3DD"/>
+  <text x="207" y="277" font-size="11.5" fill="#1f2937">算子库（Data-Juicer 式）</text>
+  <rect x="389" y="262" width="63" height="22" rx="4" fill="#F7F7F5" stroke="#E4E3DD"/>
+  <text x="400" y="277" font-size="11.5" fill="#1f2937">预处理</text>
+  <rect x="460" y="262" width="245" height="22" rx="4" fill="#F7F7F5" stroke="#E4E3DD"/>
+  <text x="471" y="277" font-size="11.5" fill="#1f2937">感知结构化（检测/重建/深度/位姿）</text>
+  <rect x="713" y="262" width="135" height="22" rx="4" fill="#F7F7F5" stroke="#E4E3DD"/>
+  <text x="724" y="277" font-size="11.5" fill="#1f2937">语义标注（VLM）</text>
+  <rect x="196" y="292" width="117" height="22" rx="4" fill="#F7F7F5" stroke="#E4E3DD"/>
+  <text x="207" y="307" font-size="11.5" fill="#1f2937">清洗/脱敏/封装</text>
+  <text x="480" y="350" text-anchor="middle" font-size="11" fill="#6b7280">▼ <tspan font-size="10">结构化数据集 + 质检报告</tspan></text>
+  <rect x="24" y="358" width="912" height="80" rx="8" fill="#ffffff" stroke="#E4E3DD"/>
+  <rect x="24" y="358" width="3" height="80" rx="1.5" fill="#35705A"/>
+  <text x="40" y="395.0" font-size="12.5" font-weight="700" fill="#35705A">③ 管控域</text>
+  <text x="40" y="412.0" font-size="10.5" fill="#6b7280">控制面</text>
+  <rect x="196" y="370" width="136" height="22" rx="4" fill="#F7F7F5" stroke="#E4E3DD"/>
+  <text x="207" y="385" font-size="11.5" fill="#1f2937">KubeRay 三 CRD</text>
+  <rect x="340" y="370" width="238" height="22" rx="4" fill="#F7F7F5" stroke="#E4E3DD"/>
+  <text x="351" y="385" font-size="11.5" fill="#1f2937">Kueue 调度（配额/优先级/gang）</text>
+  <rect x="586" y="370" width="171" height="22" rx="4" fill="#F7F7F5" stroke="#E4E3DD"/>
+  <text x="597" y="385" font-size="11.5" fill="#1f2937">状态机/检查点/断点续跑</text>
+  <rect x="765" y="370" width="111" height="22" rx="4" fill="#F7F7F5" stroke="#E4E3DD"/>
+  <text x="776" y="385" font-size="11.5" fill="#1f2937">etcd 状态存储</text>
+  <rect x="196" y="400" width="90" height="22" rx="4" fill="#F7F7F5" stroke="#E4E3DD"/>
+  <text x="207" y="415" font-size="11.5" fill="#1f2937">多租户分池</text>
+  <text x="480" y="458" text-anchor="middle" font-size="11" fill="#6b7280">▼ <tspan font-size="10">版本晋升</tspan></text>
+  <rect x="24" y="466" width="912" height="50" rx="8" fill="#ffffff" stroke="#E4E3DD"/>
+  <rect x="24" y="466" width="3" height="50" rx="1.5" fill="#4F6B9A"/>
+  <text x="40" y="488.0" font-size="12.5" font-weight="700" fill="#4F6B9A">④ 治理域</text>
+  <text x="40" y="505.0" font-size="10.5" fill="#6b7280">版本 / 血缘 / 门禁</text>
+  <rect x="196" y="478" width="149" height="22" rx="4" fill="#F7F7F5" stroke="#E4E3DD"/>
+  <text x="207" y="493" font-size="11.5" fill="#1f2937">不可变版本 + 血缘图</text>
+  <rect x="353" y="478" width="294" height="22" rx="4" fill="#F7F7F5" stroke="#E4E3DD"/>
+  <text x="364" y="493" font-size="11.5" fill="#1f2937">质量门禁（规则→互检→抽检→回归→发布）</text>
+  <rect x="655" y="478" width="174" height="22" rx="4" fill="#F7F7F5" stroke="#E4E3DD"/>
+  <text x="666" y="493" font-size="11.5" fill="#1f2937">四层数据隔离 / 泄漏防控</text>
+  <rect x="837" y="478" width="77" height="22" rx="4" fill="#F7F7F5" stroke="#E4E3DD"/>
+  <text x="848" y="493" font-size="11.5" fill="#1f2937">合规引擎</text>
+  <text x="480" y="536" text-anchor="middle" font-size="11" fill="#6b7280">▼ <tspan font-size="10">发布</tspan></text>
+  <rect x="24" y="544" width="912" height="50" rx="8" fill="#ffffff" stroke="#E4E3DD"/>
+  <rect x="24" y="544" width="3" height="50" rx="1.5" fill="#5A7FA8"/>
+  <text x="40" y="566.0" font-size="12.5" font-weight="700" fill="#5A7FA8">⑤ 资产域</text>
+  <text x="40" y="583.0" font-size="10.5" fill="#6b7280">数据集资产</text>
+  <rect x="196" y="556" width="178" height="22" rx="4" fill="#F7F7F5" stroke="#E4E3DD"/>
+  <text x="207" y="571" font-size="11.5" fill="#1f2937">数据集目录（检索/打标）</text>
+  <rect x="382" y="556" width="244" height="22" rx="4" fill="#F7F7F5" stroke="#E4E3DD"/>
+  <text x="393" y="571" font-size="11.5" fill="#1f2937">湖仓统一存储（原始+元数据+向量）</text>
+  <rect x="634" y="556" width="160" height="22" rx="4" fill="#F7F7F5" stroke="#E4E3DD"/>
+  <text x="645" y="571" font-size="11.5" fill="#1f2937">不可变快照 / 版本回溯</text>
+  <rect x="802" y="556" width="104" height="22" rx="4" fill="#F7F7F5" stroke="#E4E3DD"/>
+  <text x="813" y="571" font-size="11.5" fill="#1f2937">训练样本快照</text>
+  <text x="480" y="614" text-anchor="middle" font-size="11" fill="#6b7280">▼ <tspan font-size="10">训练集</tspan></text>
+  <rect x="24" y="622" width="912" height="50" rx="8" fill="#ffffff" stroke="#E4E3DD"/>
+  <rect x="24" y="622" width="3" height="50" rx="1.5" fill="#35705A"/>
+  <text x="40" y="644.0" font-size="12.5" font-weight="700" fill="#35705A">⑥ 消费域</text>
+  <text x="40" y="661.0" font-size="10.5" fill="#6b7280">训练 / 评测 / 回流</text>
+  <rect x="196" y="634" width="271" height="22" rx="4" fill="#F7F7F5" stroke="#E4E3DD"/>
+  <text x="207" y="649" font-size="11.5" fill="#1f2937">数据集导出（LeRobot v2/v3 / RLDS）</text>
+  <rect x="475" y="634" width="194" height="22" rx="4" fill="#F7F7F5" stroke="#E4E3DD"/>
+  <text x="486" y="649" font-size="11.5" fill="#1f2937">Ray Train / Tune 训练衔接</text>
+  <rect x="677" y="634" width="77" height="22" rx="4" fill="#F7F7F5" stroke="#E4E3DD"/>
+  <text x="688" y="649" font-size="11.5" fill="#1f2937">下游评测</text>
+  <rect x="762" y="634" width="139" height="22" rx="4" fill="#F7F7F5" stroke="#E4E3DD"/>
+  <text x="773" y="649" font-size="11.5" fill="#1f2937">Badcase 回流通道</text>
+  <rect x="24" y="688" width="912" height="34" rx="8" fill="#ffffff" stroke="#35705A" stroke-width="1.5"/>
+  <text x="38" y="709.5" font-size="12" fill="#1f2937"><tspan font-weight="700" fill="#35705A">回流闭环</tspan>：消费域 Badcase → 治理域登记 → 生产域/接入域（算子迭代、补采）→ 再产新版数据集</text>
+  <rect x="24" y="732" width="912" height="34" rx="8" fill="#ffffff" stroke="#9A6A2F" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="38" y="753.5" font-size="12" fill="#1f2937"><tspan font-weight="700" fill="#9A6A2F">三层横切</tspan>：可观测性（指标/追踪/成本告警）　·　安全合规（脱敏/RBAC/审计）　·　多租户与计量（配额/优先级/计费）</text>
+</svg>

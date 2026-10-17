@@ -1,0 +1,93 @@
+<svg width="960" height="700" viewBox="0 0 960 700" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'PingFang SC',system-ui,sans-serif">
+  <rect x="0" y="0" width="960" height="700" rx="12" fill="#f6f7f9"/>
+  <text x="24" y="34" font-size="20" fill="#1f2937" font-weight="700">具身数据管线 · 算子级质量门体系（G0–G6）</text>
+  <text x="24" y="58" font-size="13" fill="#6b7280">每阶段出口设 Gate，通过才进入下一层；失败分支 = 拦截 / 回流 / 人工介入</text>
+  <rect x="24" y="72" width="129" height="26" rx="5" fill="#ffffff" stroke="#35705A" stroke-width="1.5"/>
+  <text x="38" y="89.5" font-size="12.5" fill="#35705A" font-weight="400">通过 → 下一层</text>
+  <rect x="167" y="72" width="221" height="26" rx="5" fill="#ffffff" stroke="#A14E50" stroke-width="1.5"/>
+  <text x="181" y="89.5" font-size="12.5" fill="#A14E50" font-weight="400">不通过 → 拦截 / 回流 / 介入</text>
+  <rect x="402" y="72" width="153" height="26" rx="5" fill="#ffffff" stroke="#A14E50" stroke-width="2"/>
+  <text x="416" y="89.5" font-size="12.5" fill="#A14E50" font-weight="700">硬红线：违规率=0</text>
+  <rect x="24" y="116" width="168" height="68" rx="6" fill="#ffffff" stroke="#d1d5db"/>
+  <rect x="24" y="116" width="3" height="68" rx="1.5" fill="#9A6A2F"/>
+  <text x="38" y="145" font-size="14" font-weight="700" fill="#1f2937">采集与接入</text>
+  <text x="38" y="165" font-size="11" fill="#6b7280">多源 / 转换 / 同步 / 标定</text>
+  <rect x="208" y="116" width="424" height="68" rx="6" fill="#ffffff" stroke="#4F6B9A" stroke-width="1.5"/>
+  <text x="222" y="138" font-size="14" font-weight="700" fill="#4F6B9A">G0 接入门</text>
+  <text x="222" y="158" font-size="12" fill="#6b7280">schema · 完整性 · 同步误差</text>
+  <text x="222" y="175" font-size="12.5" fill="#1f2937">完整性=100% · 同步≤1帧</text>
+  <rect x="644" y="136.5" width="284" height="27" rx="5" fill="#e8f1ec" stroke="#35705A"/>
+  <text x="654" y="155.0" font-size="12.5" fill="#35705A">通过 → 预处理</text>
+  <rect x="24" y="192" width="168" height="68" rx="6" fill="#ffffff" stroke="#d1d5db"/>
+  <rect x="24" y="192" width="3" height="68" rx="1.5" fill="#9A6A2F"/>
+  <text x="38" y="221" font-size="14" font-weight="700" fill="#1f2937">预处理（帧流）</text>
+  <text x="38" y="241" font-size="11" fill="#6b7280">重采样 / 去畸变 / 脱敏</text>
+  <rect x="208" y="192" width="424" height="68" rx="6" fill="#ffffff" stroke="#4F6B9A" stroke-width="1.5"/>
+  <text x="222" y="214" font-size="14" font-weight="700" fill="#4F6B9A">G1 预处理门</text>
+  <text x="222" y="234" font-size="12" fill="#6b7280">帧率一致 · 内参 · 脱敏覆盖</text>
+  <text x="222" y="251" font-size="12.5" fill="#1f2937">帧率一致=100% · 人脸检出≥99%</text>
+  <rect x="644" y="212.5" width="284" height="27" rx="5" fill="#e8f1ec" stroke="#35705A"/>
+  <text x="654" y="231.0" font-size="12.5" fill="#35705A">通过 → 感知</text>
+  <rect x="24" y="268" width="168" height="68" rx="6" fill="#ffffff" stroke="#d1d5db"/>
+  <rect x="24" y="268" width="3" height="68" rx="1.5" fill="#9A6A2F"/>
+  <text x="38" y="297" font-size="14" font-weight="700" fill="#1f2937">感知与结构化</text>
+  <text x="38" y="317" font-size="11" fill="#6b7280">检测 / 手部 / 位姿 / 深度</text>
+  <rect x="208" y="268" width="424" height="68" rx="6" fill="#ffffff" stroke="#4F6B9A" stroke-width="1.5"/>
+  <text x="222" y="290" font-size="14" font-weight="700" fill="#4F6B9A">G2 结构化门</text>
+  <text x="222" y="310" font-size="12" fill="#6b7280">重建成功率 · 分层抽检一致率 · L2 通吃率</text>
+  <text x="222" y="327" font-size="12.5" fill="#1f2937">重建成功率≥95% · 通吃率≥90%</text>
+  <rect x="644" y="270" width="284" height="27" rx="5" fill="#e8f1ec" stroke="#35705A"/>
+  <text x="654" y="288.5" font-size="12.5" fill="#35705A">通过 → 语义</text>
+  <rect x="644" y="307" width="284" height="27" rx="5" fill="#f6e8e8" stroke="#A14E50"/>
+  <text x="654" y="325.5" font-size="12.5" fill="#A14E50">失败 → 人工介入 / 回流模型</text>
+  <rect x="24" y="344" width="168" height="68" rx="6" fill="#ffffff" stroke="#d1d5db"/>
+  <rect x="24" y="344" width="3" height="68" rx="1.5" fill="#9A6A2F"/>
+  <text x="38" y="373" font-size="14" font-weight="700" fill="#1f2937">语义标注</text>
+  <text x="38" y="393" font-size="11" fill="#6b7280">切分 / VLM 指令</text>
+  <rect x="208" y="344" width="424" height="68" rx="6" fill="#ffffff" stroke="#4F6B9A" stroke-width="1.5"/>
+  <text x="222" y="366" font-size="14" font-weight="700" fill="#4F6B9A">G3 语义门</text>
+  <text x="222" y="386" font-size="12" fill="#6b7280">指令可用率 · 片段准确率</text>
+  <text x="222" y="403" font-size="12.5" fill="#1f2937">可用率≥90% · IoU≥0.8</text>
+  <rect x="644" y="346" width="284" height="27" rx="5" fill="#e8f1ec" stroke="#35705A"/>
+  <text x="654" y="364.5" font-size="12.5" fill="#35705A">通过 → 清洗</text>
+  <rect x="644" y="383" width="284" height="27" rx="5" fill="#f6e8e8" stroke="#A14E50"/>
+  <text x="654" y="401.5" font-size="12.5" fill="#A14E50">失败 → 人工修正 / VLM 重跑</text>
+  <rect x="24" y="420" width="168" height="68" rx="6" fill="#ffffff" stroke="#d1d5db"/>
+  <rect x="24" y="420" width="3" height="68" rx="1.5" fill="#9A6A2F"/>
+  <text x="38" y="449" font-size="14" font-weight="700" fill="#1f2937">清洗与质检</text>
+  <text x="38" y="469" font-size="11" fill="#6b7280">去重 / 合规 / 互检 / 抽检</text>
+  <rect x="208" y="420" width="424" height="68" rx="6" fill="#ffffff" stroke="#4F6B9A" stroke-width="1.5"/>
+  <text x="222" y="442" font-size="14" font-weight="700" fill="#4F6B9A">G4 工程门</text>
+  <text x="222" y="462" font-size="12" fill="#6b7280">通吃率 · 介入率 · 违规率 · 抽检</text>
+  <text x="222" y="479" font-size="12.5" fill="#1f2937">通吃率≥90% · 介入率≤10% · 违规率=0（硬红线）</text>
+  <rect x="644" y="422" width="284" height="27" rx="5" fill="#e8f1ec" stroke="#35705A"/>
+  <text x="654" y="440.5" font-size="12.5" fill="#35705A">通过 → 封装</text>
+  <rect x="644" y="459" width="284" height="27" rx="5" fill="#f6e8e8" stroke="#A14E50"/>
+  <text x="654" y="477.5" font-size="12.5" fill="#A14E50">违规=全批拦截 · 其余回流</text>
+  <rect x="24" y="496" width="168" height="68" rx="6" fill="#ffffff" stroke="#d1d5db"/>
+  <rect x="24" y="496" width="3" height="68" rx="1.5" fill="#9A6A2F"/>
+  <text x="38" y="525" font-size="14" font-weight="700" fill="#1f2937">格式与封装</text>
+  <text x="38" y="545" font-size="11" fill="#6b7280">状态向量 / 编码 / 打包</text>
+  <rect x="208" y="496" width="424" height="68" rx="6" fill="#ffffff" stroke="#4F6B9A" stroke-width="1.5"/>
+  <text x="222" y="518" font-size="14" font-weight="700" fill="#4F6B9A">G5 封装门</text>
+  <text x="222" y="538" font-size="12" fill="#6b7280">schema 100% · 可加载 · 泄漏检查</text>
+  <text x="222" y="555" font-size="12.5" fill="#1f2937">校验=100% · 泄漏=0</text>
+  <rect x="644" y="498" width="284" height="27" rx="5" fill="#e8f1ec" stroke="#35705A"/>
+  <text x="654" y="516.5" font-size="12.5" fill="#35705A">通过 → 版本发布</text>
+  <rect x="644" y="535" width="284" height="27" rx="5" fill="#f6e8e8" stroke="#A14E50"/>
+  <text x="654" y="553.5" font-size="12.5" fill="#A14E50">失败 → 拦截修复</text>
+  <rect x="24" y="572" width="168" height="68" rx="6" fill="#ffffff" stroke="#d1d5db"/>
+  <rect x="24" y="572" width="3" height="68" rx="1.5" fill="#9A6A2F"/>
+  <text x="38" y="601" font-size="14" font-weight="700" fill="#1f2937">版本发布</text>
+  <text x="38" y="621" font-size="11" fill="#6b7280">统计采样 / 封装出口</text>
+  <rect x="208" y="572" width="424" height="68" rx="6" fill="#ffffff" stroke="#4F6B9A" stroke-width="1.5"/>
+  <text x="222" y="594" font-size="14" font-weight="700" fill="#4F6B9A">G6 回归门</text>
+  <text x="222" y="614" font-size="12" fill="#6b7280">Golden Set 回归 · 泄漏复查</text>
+  <text x="222" y="631" font-size="12.5" fill="#1f2937">指标不劣于基线 · 泄漏=0</text>
+  <rect x="644" y="574" width="284" height="27" rx="5" fill="#e8f1ec" stroke="#35705A"/>
+  <text x="654" y="592.5" font-size="12.5" fill="#35705A">通过 → 发布（Badcase 回流闭环）</text>
+  <rect x="644" y="611" width="284" height="27" rx="5" fill="#f6e8e8" stroke="#A14E50"/>
+  <text x="654" y="629.5" font-size="12.5" fill="#A14E50">失败 → 版本回滚</text>
+  <rect x="24" y="654" width="912" height="34" rx="6" fill="#ffffff" stroke="#A14E50" stroke-width="2"/>
+  <text x="480" y="676" text-anchor="middle" font-size="13.5" font-weight="700" fill="#A14E50">硬红线：G4 违规率必须 = 0（合规门禁，全批拦截，不进入下游）</text>
+</svg>

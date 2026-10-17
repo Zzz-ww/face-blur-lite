@@ -1,242 +1,243 @@
-<svg width="960" height="876" viewBox="0 0 960 876" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'PingFang SC',system-ui,sans-serif">
-  <rect x="0" y="0" width="960" height="876" rx="12" fill="#f6f7f9"/>
-  <text x="24" y="30" font-size="16" fill="#1f2937" font-weight="700">具身数据管线 · 算子全景（业内通用版）</text>
-  <text x="24" y="50" font-size="11" fill="#6b7280">8 阶段 · 算子芯片下标为代表模型 · 左棕条 = [规则] 确定性·无模型·CPU · 左蓝条 = [模型] 推理·GPU · 双色条 = [规则]+[模型] 混合 · 详细口径见 §0 与 §2–§10 表</text>
-  <rect x="24" y="64" width="161" height="22" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
-  <rect x="24" y="64" width="3" height="22" rx="1.5" fill="#9A6A2F"/>
-  <text x="37" y="79" font-size="11" fill="#1f2937">[规则] 确定性 · CPU</text>
-  <rect x="199" y="64" width="147" height="22" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
-  <rect x="199" y="64" width="3" height="22" rx="1.5" fill="#4F6B9A"/>
-  <text x="212" y="79" font-size="11" fill="#1f2937">[模型] 推理 · GPU</text>
-  <rect x="360" y="64" width="140" height="22" rx="5" fill="#F6F5F2" stroke="#DFDCD6"/>
-  <rect x="360" y="64" width="3" height="11" rx="1.5" fill="#9A6A2F"/>
-  <rect x="360" y="75" width="3" height="11" rx="1.5" fill="#4F6B9A"/>
-  <text x="373" y="79" font-size="11" fill="#1f2937">[规则]+[模型] 混合</text>
-  <rect x="24" y="102" width="110" height="54" rx="6" fill="#e5e7eb"/>
-  <text x="79.0" y="126.0" text-anchor="middle" font-size="12.5" font-weight="700" fill="#374151">采集与接入</text>
-  <text x="79.0" y="144.0" text-anchor="middle" font-size="10.5" fill="#6b7280">§2 · 5 算子</text>
-  <rect x="146" y="102" width="790" height="54" rx="6" fill="#ffffff" stroke="#d1d5db"/>
-  <rect x="160" y="111" width="160" height="30" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
-  <rect x="160" y="111" width="3" height="30" rx="1.5" fill="#9A6A2F"/>
-  <text x="173" y="124" font-size="11.5" fill="#1f2937">多源采集</text>
-  <text x="173" y="136" font-size="9.5" fill="#8A6A45">视频/rosbag/关节流/仿真</text>
-  <rect x="328" y="111" width="124" height="30" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
-  <rect x="328" y="111" width="3" height="30" rx="1.5" fill="#9A6A2F"/>
-  <text x="341" y="124" font-size="11.5" fill="#1f2937">格式转换</text>
-  <text x="341" y="136" font-size="9.5" fill="#8A6A45">rosbag→LeRobot</text>
-  <rect x="460" y="111" width="116" height="30" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
-  <rect x="460" y="111" width="3" height="30" rx="1.5" fill="#9A6A2F"/>
-  <text x="473" y="124" font-size="11.5" fill="#1f2937">时间同步</text>
-  <text x="473" y="136" font-size="9.5" fill="#8A6A45">多模态时间戳对齐</text>
-  <rect x="584" y="111" width="117" height="30" rx="5" fill="#F6F5F2" stroke="#DFDCD6"/>
-  <rect x="584" y="111" width="3" height="15" rx="1.5" fill="#9A6A2F"/>
-  <rect x="584" y="126" width="3" height="15" rx="1.5" fill="#4F6B9A"/>
-  <text x="597" y="124" font-size="11.5" fill="#1f2937">相机标定</text>
-  <text x="597" y="136" font-size="9.5" fill="#6B7280">GeoCalib · 模型</text>
-  <rect x="709" y="111" width="125" height="30" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
-  <rect x="709" y="111" width="3" height="30" rx="1.5" fill="#9A6A2F"/>
-  <text x="722" y="124" font-size="11.5" fill="#1f2937">完整性校验</text>
-  <text x="722" y="136" font-size="9.5" fill="#8A6A45">schema/缺帧/损坏</text>
-  <text x="541" y="169" text-anchor="middle" font-size="13" fill="#6b7280">▼</text>
-  <rect x="24" y="178" width="110" height="90" rx="6" fill="#e5e7eb"/>
-  <text x="79.0" y="220.0" text-anchor="middle" font-size="12.5" font-weight="700" fill="#374151">预处理（帧流）</text>
-  <text x="79.0" y="238.0" text-anchor="middle" font-size="10.5" fill="#6b7280">§3 · 7 算子</text>
-  <rect x="146" y="178" width="790" height="90" rx="6" fill="#ffffff" stroke="#d1d5db"/>
-  <rect x="160" y="187" width="131" height="30" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
-  <rect x="160" y="187" width="3" height="30" rx="1.5" fill="#9A6A2F"/>
-  <text x="173" y="200" font-size="11.5" fill="#1f2937">帧提取/重采样</text>
-  <text x="173" y="212" font-size="9.5" fill="#8A6A45">ffmpeg · 统一帧率</text>
-  <rect x="299" y="187" width="127" height="30" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
-  <rect x="299" y="187" width="3" height="30" rx="1.5" fill="#9A6A2F"/>
-  <text x="312" y="200" font-size="11.5" fill="#1f2937">去畸变</text>
-  <text x="312" y="212" font-size="9.5" fill="#8A6A45">OpenCV undistort</text>
-  <rect x="434" y="187" width="121" height="30" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
-  <rect x="434" y="187" width="3" height="30" rx="1.5" fill="#9A6A2F"/>
-  <text x="447" y="200" font-size="11.5" fill="#1f2937">裁切/缩放</text>
-  <text x="447" y="212" font-size="9.5" fill="#8A6A45">ROI · 统一分辨率</text>
-  <rect x="563" y="187" width="135" height="30" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
-  <rect x="563" y="187" width="3" height="30" rx="1.5" fill="#9A6A2F"/>
-  <text x="576" y="200" font-size="11.5" fill="#1f2937">颜色/光照校正</text>
-  <text x="576" y="212" font-size="9.5" fill="#8A6A45">白平衡 · 直方图均衡</text>
-  <rect x="706" y="187" width="103" height="30" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
-  <rect x="706" y="187" width="3" height="30" rx="1.5" fill="#4F6B9A"/>
-  <text x="719" y="200" font-size="11.5" fill="#1f2937">去模糊/超分</text>
-  <text x="719" y="212" font-size="9.5" fill="#4F6B9A">Real-ESRGAN</text>
-  <rect x="160" y="223" width="122" height="30" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
-  <rect x="160" y="223" width="3" height="30" rx="1.5" fill="#4F6B9A"/>
-  <text x="173" y="236" font-size="11.5" fill="#1f2937">美学过滤</text>
-  <text x="173" y="248" font-size="9.5" fill="#4F6B9A">LAION aesthetics</text>
-  <rect x="290" y="223" width="125" height="30" rx="5" fill="#F6F5F2" stroke="#DFDCD6"/>
-  <rect x="290" y="223" width="3" height="15" rx="1.5" fill="#9A6A2F"/>
-  <rect x="290" y="238" width="3" height="15" rx="1.5" fill="#4F6B9A"/>
-  <text x="303" y="236" font-size="11.5" fill="#1f2937">脱敏前置</text>
-  <text x="303" y="248" font-size="9.5" fill="#6B7280">RetinaFace + blur</text>
-  <text x="541" y="281" text-anchor="middle" font-size="13" fill="#6b7280">▼</text>
-  <rect x="24" y="290" width="110" height="126" rx="6" fill="#e5e7eb"/>
-  <text x="79.0" y="350.0" text-anchor="middle" font-size="12.5" font-weight="700" fill="#374151">感知与结构化</text>
-  <text x="79.0" y="368.0" text-anchor="middle" font-size="10.5" fill="#6b7280">§4 · 9 算子</text>
-  <rect x="146" y="290" width="790" height="126" rx="6" fill="#ffffff" stroke="#d1d5db"/>
-  <rect x="160" y="299" width="162" height="30" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
-  <rect x="160" y="299" width="3" height="30" rx="1.5" fill="#4F6B9A"/>
-  <text x="173" y="312" font-size="11.5" fill="#1f2937">目标检测</text>
-  <text x="173" y="324" font-size="9.5" fill="#4F6B9A">YOLO / Grounding DINO</text>
-  <rect x="330" y="299" width="151" height="30" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
-  <rect x="330" y="299" width="3" height="30" rx="1.5" fill="#4F6B9A"/>
-  <text x="343" y="312" font-size="11.5" fill="#1f2937">实例/语义分割</text>
-  <text x="343" y="324" font-size="9.5" fill="#4F6B9A">SAM2 / Mask2Former</text>
-  <rect x="489" y="299" width="167" height="30" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
-  <rect x="489" y="299" width="3" height="30" rx="1.5" fill="#4F6B9A"/>
-  <text x="502" y="312" font-size="11.5" fill="#1f2937">手部检测与重建</text>
-  <text x="502" y="324" font-size="9.5" fill="#4F6B9A">Hamer / HaWoR / WiLoR</text>
-  <rect x="664" y="299" width="142" height="30" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
-  <rect x="664" y="299" width="3" height="30" rx="1.5" fill="#4F6B9A"/>
-  <text x="677" y="312" font-size="11.5" fill="#1f2937">人体姿态估计</text>
-  <text x="677" y="324" font-size="9.5" fill="#4F6B9A">MediaPipe / ViTPose</text>
-  <rect x="160" y="335" width="145" height="30" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
-  <rect x="160" y="335" width="3" height="30" rx="1.5" fill="#4F6B9A"/>
-  <text x="173" y="348" font-size="11.5" fill="#1f2937">相机位姿/SLAM</text>
-  <text x="173" y="360" font-size="9.5" fill="#4F6B9A">COLMAP / MegaSaM</text>
-  <rect x="313" y="335" width="167" height="30" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
-  <rect x="313" y="335" width="3" height="30" rx="1.5" fill="#4F6B9A"/>
-  <text x="326" y="348" font-size="11.5" fill="#1f2937">单目深度估计</text>
-  <text x="326" y="360" font-size="9.5" fill="#4F6B9A">DAv2 / MoGe / UniDepth</text>
-  <rect x="488" y="335" width="187" height="30" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
-  <rect x="488" y="335" width="3" height="30" rx="1.5" fill="#4F6B9A"/>
-  <text x="501" y="348" font-size="11.5" fill="#1f2937">物体6DoF位姿</text>
-  <text x="501" y="360" font-size="9.5" fill="#4F6B9A">FoundationPose / MegaPose</text>
-  <rect x="683" y="335" width="175" height="30" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
-  <rect x="683" y="335" width="3" height="30" rx="1.5" fill="#4F6B9A"/>
-  <text x="696" y="348" font-size="11.5" fill="#1f2937">点轨迹/光流</text>
-  <text x="696" y="360" font-size="9.5" fill="#4F6B9A">TAPIR / CoTracker / RAFT</text>
-  <rect x="160" y="371" width="116" height="30" rx="5" fill="#F6F5F2" stroke="#DFDCD6"/>
-  <rect x="160" y="371" width="3" height="15" rx="1.5" fill="#9A6A2F"/>
-  <rect x="160" y="386" width="3" height="15" rx="1.5" fill="#4F6B9A"/>
-  <text x="173" y="384" font-size="11.5" fill="#1f2937">动作表示对齐</text>
-  <text x="173" y="396" font-size="9.5" fill="#6B7280">关节角→标准表示</text>
-  <text x="541" y="429" text-anchor="middle" font-size="13" fill="#6b7280">▼</text>
-  <rect x="24" y="438" width="110" height="90" rx="6" fill="#e5e7eb"/>
-  <text x="79.0" y="480.0" text-anchor="middle" font-size="12.5" font-weight="700" fill="#374151">语义标注</text>
-  <text x="79.0" y="498.0" text-anchor="middle" font-size="10.5" fill="#6b7280">§5 · 6 算子</text>
-  <rect x="146" y="438" width="790" height="90" rx="6" fill="#ffffff" stroke="#d1d5db"/>
-  <rect x="160" y="447" width="128" height="30" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
-  <rect x="160" y="447" width="3" height="30" rx="1.5" fill="#9A6A2F"/>
-  <text x="173" y="460" font-size="11.5" fill="#1f2937">时序同步/重采样</text>
-  <text x="173" y="472" font-size="9.5" fill="#8A6A45">视觉-动作时间对应</text>
-  <rect x="296" y="447" width="176" height="30" rx="5" fill="#F6F5F2" stroke="#DFDCD6"/>
-  <rect x="296" y="447" width="3" height="15" rx="1.5" fill="#9A6A2F"/>
-  <rect x="296" y="462" width="3" height="15" rx="1.5" fill="#4F6B9A"/>
-  <text x="309" y="460" font-size="11.5" fill="#1f2937">动作分割</text>
-  <text x="309" y="472" font-size="9.5" fill="#6B7280">腕速极小值切分 · CPU UDF</text>
-  <rect x="480" y="447" width="143" height="30" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
-  <rect x="480" y="447" width="3" height="30" rx="1.5" fill="#4F6B9A"/>
-  <text x="493" y="460" font-size="11.5" fill="#1f2937">语言指令生成</text>
-  <text x="493" y="472" font-size="9.5" fill="#4F6B9A">Qwen2.5-VL / LLaVA</text>
-  <rect x="631" y="447" width="128" height="30" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
-  <rect x="631" y="447" width="3" height="30" rx="1.5" fill="#4F6B9A"/>
-  <text x="644" y="460" font-size="11.5" fill="#1f2937">指令标准化/重写</text>
-  <text x="644" y="472" font-size="9.5" fill="#4F6B9A">VLM 统一术语</text>
-  <rect x="767" y="447" width="94" height="30" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
-  <rect x="767" y="447" width="3" height="30" rx="1.5" fill="#4F6B9A"/>
-  <text x="780" y="460" font-size="11.5" fill="#1f2937">子任务标注</text>
-  <text x="780" y="472" font-size="9.5" fill="#4F6B9A">VLM / 规则</text>
-  <rect x="160" y="483" width="114" height="30" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
-  <rect x="160" y="483" width="3" height="30" rx="1.5" fill="#4F6B9A"/>
-  <text x="173" y="496" font-size="11.5" fill="#1f2937">场景/物体描述</text>
-  <text x="173" y="508" font-size="9.5" fill="#4F6B9A">VLM</text>
-  <text x="541" y="541" text-anchor="middle" font-size="13" fill="#6b7280">▼</text>
-  <rect x="24" y="550" width="110" height="90" rx="6" fill="#e5e7eb"/>
-  <text x="79.0" y="592.0" text-anchor="middle" font-size="12.5" font-weight="700" fill="#374151">清洗与质检</text>
-  <text x="79.0" y="610.0" text-anchor="middle" font-size="10.5" fill="#6b7280">§6 · 8 算子</text>
-  <rect x="146" y="550" width="790" height="90" rx="6" fill="#ffffff" stroke="#d1d5db"/>
-  <rect x="160" y="559" width="177" height="30" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
-  <rect x="160" y="559" width="3" height="30" rx="1.5" fill="#9A6A2F"/>
-  <text x="173" y="572" font-size="11.5" fill="#1f2937">视频去重</text>
-  <text x="173" y="584" font-size="9.5" fill="#8A6A45">video_deduplicator · hash</text>
-  <rect x="345" y="559" width="118" height="30" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
-  <rect x="345" y="559" width="3" height="30" rx="1.5" fill="#4F6B9A"/>
-  <text x="358" y="572" font-size="11.5" fill="#1f2937">语义去重</text>
-  <text x="358" y="584" font-size="9.5" fill="#4F6B9A">CLIP embedding</text>
-  <rect x="471" y="559" width="127" height="30" rx="5" fill="#F6F5F2" stroke="#DFDCD6"/>
-  <rect x="471" y="559" width="3" height="15" rx="1.5" fill="#9A6A2F"/>
-  <rect x="471" y="574" width="3" height="15" rx="1.5" fill="#4F6B9A"/>
-  <text x="484" y="572" font-size="11.5" fill="#1f2937">质量过滤</text>
-  <text x="484" y="584" font-size="9.5" fill="#6B7280">清晰度/模糊/信噪比</text>
-  <rect x="606" y="559" width="98" height="30" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
-  <rect x="606" y="559" width="3" height="30" rx="1.5" fill="#4F6B9A"/>
-  <text x="619" y="572" font-size="11.5" fill="#1f2937">内容合规</text>
-  <text x="619" y="584" font-size="9.5" fill="#4F6B9A">NSFW 分类器</text>
-  <rect x="712" y="559" width="121" height="30" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
-  <rect x="712" y="559" width="3" height="30" rx="1.5" fill="#9A6A2F"/>
-  <text x="725" y="572" font-size="11.5" fill="#1f2937">异常值过滤</text>
-  <text x="725" y="584" font-size="9.5" fill="#8A6A45">关节越界/速度突变</text>
-  <rect x="160" y="595" width="116" height="30" rx="5" fill="#F6F5F2" stroke="#DFDCD6"/>
-  <rect x="160" y="595" width="3" height="15" rx="1.5" fill="#9A6A2F"/>
-  <rect x="160" y="610" width="3" height="15" rx="1.5" fill="#4F6B9A"/>
-  <text x="173" y="608" font-size="11.5" fill="#1f2937">多阶段QC</text>
-  <text x="173" y="620" font-size="9.5" fill="#6B7280">规则→模型→人工</text>
-  <rect x="284" y="595" width="139" height="30" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
-  <rect x="284" y="595" width="3" height="30" rx="1.5" fill="#4F6B9A"/>
-  <text x="297" y="608" font-size="11.5" fill="#1f2937">双模型互检</text>
-  <text x="297" y="620" font-size="9.5" fill="#4F6B9A">Hamer+HaWoR 示例</text>
-  <rect x="431" y="595" width="127" height="30" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
-  <rect x="431" y="595" width="3" height="30" rx="1.5" fill="#9A6A2F"/>
-  <text x="444" y="608" font-size="11.5" fill="#1f2937">分层抽检</text>
-  <text x="444" y="620" font-size="9.5" fill="#8A6A45">按源/场景/动作分层</text>
-  <text x="541" y="653" text-anchor="middle" font-size="13" fill="#6b7280">▼</text>
-  <rect x="24" y="662" width="110" height="54" rx="6" fill="#e5e7eb"/>
-  <text x="79.0" y="686.0" text-anchor="middle" font-size="12.5" font-weight="700" fill="#374151">脱敏与合规</text>
-  <text x="79.0" y="704.0" text-anchor="middle" font-size="10.5" fill="#6b7280">§7 · 3 算子</text>
-  <rect x="146" y="662" width="790" height="54" rx="6" fill="#ffffff" stroke="#d1d5db"/>
-  <rect x="160" y="671" width="148" height="30" rx="5" fill="#F6F5F2" stroke="#DFDCD6"/>
-  <rect x="160" y="671" width="3" height="15" rx="1.5" fill="#9A6A2F"/>
-  <rect x="160" y="686" width="3" height="15" rx="1.5" fill="#4F6B9A"/>
-  <text x="173" y="684" font-size="11.5" fill="#1f2937">人脸/车牌/隐私模糊</text>
-  <text x="173" y="696" font-size="9.5" fill="#6B7280">检测后模糊</text>
-  <rect x="316" y="671" width="108" height="30" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
-  <rect x="316" y="671" width="3" height="30" rx="1.5" fill="#4F6B9A"/>
-  <text x="329" y="684" font-size="11.5" fill="#1f2937">隐私对象检测</text>
-  <text x="329" y="696" font-size="9.5" fill="#4F6B9A">检测/OCR</text>
-  <rect x="432" y="671" width="124" height="30" rx="5" fill="#F6F5F2" stroke="#DFDCD6"/>
-  <rect x="432" y="671" width="3" height="15" rx="1.5" fill="#9A6A2F"/>
-  <rect x="432" y="686" width="3" height="15" rx="1.5" fill="#4F6B9A"/>
-  <text x="445" y="684" font-size="11.5" fill="#1f2937">合规审核</text>
-  <text x="445" y="696" font-size="9.5" fill="#6B7280">模型预审+人工兜底</text>
-  <text x="541" y="729" text-anchor="middle" font-size="13" fill="#6b7280">▼</text>
-  <rect x="24" y="738" width="110" height="54" rx="6" fill="#e5e7eb"/>
-  <text x="79.0" y="762.0" text-anchor="middle" font-size="12.5" font-weight="700" fill="#374151">格式与封装</text>
-  <text x="79.0" y="780.0" text-anchor="middle" font-size="10.5" fill="#6b7280">§8 · 4 算子</text>
-  <rect x="146" y="738" width="790" height="54" rx="6" fill="#ffffff" stroke="#d1d5db"/>
-  <rect x="160" y="747" width="142" height="30" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
-  <rect x="160" y="747" width="3" height="30" rx="1.5" fill="#9A6A2F"/>
-  <text x="173" y="760" font-size="11.5" fill="#1f2937">状态向量提取</text>
-  <text x="173" y="772" font-size="9.5" fill="#8A6A45">关节/位姿→state 向量</text>
-  <rect x="310" y="747" width="105" height="30" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
-  <rect x="310" y="747" width="3" height="30" rx="1.5" fill="#9A6A2F"/>
-  <text x="323" y="760" font-size="11.5" fill="#1f2937">视频编码</text>
-  <text x="323" y="772" font-size="9.5" fill="#8A6A45">H.264 / HEVC</text>
-  <rect x="423" y="747" width="209" height="30" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
-  <rect x="423" y="747" width="3" height="30" rx="1.5" fill="#9A6A2F"/>
-  <text x="436" y="760" font-size="11.5" fill="#1f2937">数据集封装</text>
-  <text x="436" y="772" font-size="9.5" fill="#8A6A45">LeRobot v2/v3 · RLDS · HDF5</text>
-  <rect x="640" y="747" width="138" height="30" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
-  <rect x="640" y="747" width="3" height="30" rx="1.5" fill="#9A6A2F"/>
-  <text x="653" y="760" font-size="11.5" fill="#1f2937">元数据生成</text>
-  <text x="653" y="772" font-size="9.5" fill="#8A6A45">时长/动作类型/版本号</text>
-  <text x="541" y="805" text-anchor="middle" font-size="13" fill="#6b7280">▼</text>
-  <rect x="24" y="814" width="110" height="54" rx="6" fill="#e5e7eb"/>
-  <text x="79.0" y="838.0" text-anchor="middle" font-size="12.5" font-weight="700" fill="#374151">统计与采样</text>
-  <text x="79.0" y="856.0" text-anchor="middle" font-size="10.5" fill="#6b7280">§9 · 3 算子</text>
-  <rect x="146" y="814" width="790" height="54" rx="6" fill="#ffffff" stroke="#d1d5db"/>
-  <rect x="160" y="823" width="132" height="30" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
-  <rect x="160" y="823" width="3" height="30" rx="1.5" fill="#9A6A2F"/>
-  <text x="173" y="836" font-size="11.5" fill="#1f2937">分层采样</text>
-  <text x="173" y="848" font-size="9.5" fill="#8A6A45">训练/验证/测试/回归</text>
-  <rect x="300" y="823" width="99" height="30" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
-  <rect x="300" y="823" width="3" height="30" rx="1.5" fill="#9A6A2F"/>
-  <text x="313" y="836" font-size="11.5" fill="#1f2937">类别均衡</text>
-  <text x="313" y="848" font-size="9.5" fill="#8A6A45">欠采样/过采样</text>
-  <rect x="407" y="823" width="127" height="30" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
-  <rect x="407" y="823" width="3" height="30" rx="1.5" fill="#9A6A2F"/>
-  <text x="420" y="836" font-size="11.5" fill="#1f2937">覆盖度统计</text>
-  <text x="420" y="848" font-size="9.5" fill="#8A6A45">场景/物体/动作分布</text>
+<svg width="960" height="1340" viewBox="0 0 960 1340" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'PingFang SC',system-ui,sans-serif">
+  <rect x="0" y="0" width="960" height="1340" rx="12" fill="#f6f7f9"/>
+  <text x="24" y="34" font-size="20" fill="#1f2937" font-weight="700">具身数据管线 · 算子全景（业内通用版）</text>
+  <text x="24" y="58" font-size="13" fill="#6b7280">8 阶段 · 芯片下标 = 代表模型 · 左棕条 = [规则] 确定性·无模型·CPU</text>
+  <text x="24" y="78" font-size="13" fill="#6b7280">左蓝条 = [模型] 推理·GPU · 双色条 = [规则]+[模型] 混合 · 详细口径见 §0 与 §2–§10 表</text>
+  <rect x="24" y="94" width="217" height="30" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
+  <rect x="24" y="94" width="3" height="30" rx="1.5" fill="#9A6A2F"/>
+  <text x="38" y="114.5" font-size="15" fill="#1f2937">[规则] 确定性 · CPU</text>
+  <rect x="257" y="94" width="198" height="30" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
+  <rect x="257" y="94" width="3" height="30" rx="1.5" fill="#4F6B9A"/>
+  <text x="271" y="114.5" font-size="15" fill="#1f2937">[模型] 推理 · GPU</text>
+  <rect x="471" y="94" width="189" height="30" rx="5" fill="#F6F5F2" stroke="#DFDCD6"/>
+  <rect x="471" y="94" width="3" height="15" rx="1.5" fill="#9A6A2F"/>
+  <rect x="471" y="109" width="3" height="15" rx="1.5" fill="#4F6B9A"/>
+  <text x="485" y="114.5" font-size="15" fill="#1f2937">[规则]+[模型] 混合</text>
+  <rect x="24" y="144" width="150" height="122" rx="6" fill="#e5e7eb"/>
+  <text x="99.0" y="201.0" text-anchor="middle" font-size="17" font-weight="700" fill="#374151">采集与接入</text>
+  <text x="99.0" y="223.0" text-anchor="middle" font-size="13" fill="#6b7280">§2 · 5 算子</text>
+  <rect x="174" y="144" width="762" height="122" rx="6" fill="#ffffff" stroke="#d1d5db"/>
+  <rect x="188" y="157" width="220" height="40" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
+  <rect x="188" y="157" width="3" height="40" rx="1.5" fill="#9A6A2F"/>
+  <text x="203" y="174" font-size="16" fill="#1f2937">多源采集</text>
+  <text x="203" y="190.5" font-size="13.5" fill="#8A6A45">视频/rosbag/关节流/仿真</text>
+  <rect x="418" y="157" width="169" height="40" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
+  <rect x="418" y="157" width="3" height="40" rx="1.5" fill="#9A6A2F"/>
+  <text x="433" y="174" font-size="16" fill="#1f2937">格式转换</text>
+  <text x="433" y="190.5" font-size="13.5" fill="#8A6A45">rosbag→LeRobot</text>
+  <rect x="597" y="157" width="158" height="40" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
+  <rect x="597" y="157" width="3" height="40" rx="1.5" fill="#9A6A2F"/>
+  <text x="612" y="174" font-size="16" fill="#1f2937">时间同步</text>
+  <text x="612" y="190.5" font-size="13.5" fill="#8A6A45">多模态时间戳对齐</text>
+  <rect x="188" y="205" width="159" height="40" rx="5" fill="#F6F5F2" stroke="#DFDCD6"/>
+  <rect x="188" y="205" width="3" height="20" rx="1.5" fill="#9A6A2F"/>
+  <rect x="188" y="225" width="3" height="20" rx="1.5" fill="#4F6B9A"/>
+  <text x="203" y="222" font-size="16" fill="#1f2937">相机标定</text>
+  <text x="203" y="238.5" font-size="13.5" fill="#6B7280">GeoCalib · 模型</text>
+  <rect x="357" y="205" width="170" height="40" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
+  <rect x="357" y="205" width="3" height="40" rx="1.5" fill="#9A6A2F"/>
+  <text x="372" y="222" font-size="16" fill="#1f2937">完整性校验</text>
+  <text x="372" y="238.5" font-size="13.5" fill="#8A6A45">schema/缺帧/损坏</text>
+  <text x="555.0" y="283" text-anchor="middle" font-size="16" fill="#6b7280">▼</text>
+  <rect x="24" y="296" width="150" height="122" rx="6" fill="#e5e7eb"/>
+  <text x="99.0" y="353.0" text-anchor="middle" font-size="17" font-weight="700" fill="#374151">预处理（帧流）</text>
+  <text x="99.0" y="375.0" text-anchor="middle" font-size="13" fill="#6b7280">§3 · 7 算子</text>
+  <rect x="174" y="296" width="762" height="122" rx="6" fill="#ffffff" stroke="#d1d5db"/>
+  <rect x="188" y="309" width="179" height="40" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
+  <rect x="188" y="309" width="3" height="40" rx="1.5" fill="#9A6A2F"/>
+  <text x="203" y="326" font-size="16" fill="#1f2937">帧提取/重采样</text>
+  <text x="203" y="342.5" font-size="13.5" fill="#8A6A45">ffmpeg · 统一帧率</text>
+  <rect x="377" y="309" width="174" height="40" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
+  <rect x="377" y="309" width="3" height="40" rx="1.5" fill="#9A6A2F"/>
+  <text x="392" y="326" font-size="16" fill="#1f2937">去畸变</text>
+  <text x="392" y="342.5" font-size="13.5" fill="#8A6A45">OpenCV undistort</text>
+  <rect x="561" y="309" width="165" height="40" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
+  <rect x="561" y="309" width="3" height="40" rx="1.5" fill="#9A6A2F"/>
+  <text x="576" y="326" font-size="16" fill="#1f2937">裁切/缩放</text>
+  <text x="576" y="342.5" font-size="13.5" fill="#8A6A45">ROI · 统一分辨率</text>
+  <rect x="188" y="357" width="184" height="40" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
+  <rect x="188" y="357" width="3" height="40" rx="1.5" fill="#9A6A2F"/>
+  <text x="203" y="374" font-size="16" fill="#1f2937">颜色/光照校正</text>
+  <text x="203" y="390.5" font-size="13.5" fill="#8A6A45">白平衡 · 直方图均衡</text>
+  <rect x="382" y="357" width="139" height="40" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
+  <rect x="382" y="357" width="3" height="40" rx="1.5" fill="#4F6B9A"/>
+  <text x="397" y="374" font-size="16" fill="#1f2937">去模糊/超分</text>
+  <text x="397" y="390.5" font-size="13.5" fill="#4F6B9A">Real-ESRGAN</text>
+  <rect x="531" y="357" width="167" height="40" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
+  <rect x="531" y="357" width="3" height="40" rx="1.5" fill="#4F6B9A"/>
+  <text x="546" y="374" font-size="16" fill="#1f2937">美学过滤</text>
+  <text x="546" y="390.5" font-size="13.5" fill="#4F6B9A">LAION aesthetics</text>
+  <rect x="708" y="357" width="170" height="40" rx="5" fill="#F6F5F2" stroke="#DFDCD6"/>
+  <rect x="708" y="357" width="3" height="20" rx="1.5" fill="#9A6A2F"/>
+  <rect x="708" y="377" width="3" height="20" rx="1.5" fill="#4F6B9A"/>
+  <text x="723" y="374" font-size="16" fill="#1f2937">脱敏前置</text>
+  <text x="723" y="390.5" font-size="13.5" fill="#6B7280">RetinaFace + blur</text>
+  <text x="555.0" y="435" text-anchor="middle" font-size="16" fill="#6b7280">▼</text>
+  <rect x="24" y="448" width="150" height="170" rx="6" fill="#e5e7eb"/>
+  <text x="99.0" y="529.0" text-anchor="middle" font-size="17" font-weight="700" fill="#374151">感知与结构化</text>
+  <text x="99.0" y="551.0" text-anchor="middle" font-size="13" fill="#6b7280">§4 · 9 算子</text>
+  <rect x="174" y="448" width="762" height="170" rx="6" fill="#ffffff" stroke="#d1d5db"/>
+  <rect x="188" y="461" width="224" height="40" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
+  <rect x="188" y="461" width="3" height="40" rx="1.5" fill="#4F6B9A"/>
+  <text x="203" y="478" font-size="16" fill="#1f2937">目标检测</text>
+  <text x="203" y="494.5" font-size="13.5" fill="#4F6B9A">YOLO / Grounding DINO</text>
+  <rect x="422" y="461" width="207" height="40" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
+  <rect x="422" y="461" width="3" height="40" rx="1.5" fill="#4F6B9A"/>
+  <text x="437" y="478" font-size="16" fill="#1f2937">实例/语义分割</text>
+  <text x="437" y="494.5" font-size="13.5" fill="#4F6B9A">SAM2 / Mask2Former</text>
+  <rect x="639" y="461" width="230" height="40" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
+  <rect x="639" y="461" width="3" height="40" rx="1.5" fill="#4F6B9A"/>
+  <text x="654" y="478" font-size="16" fill="#1f2937">手部检测与重建</text>
+  <text x="654" y="494.5" font-size="13.5" fill="#4F6B9A">Hamer / HaWoR / WiLoR</text>
+  <rect x="188" y="509" width="195" height="40" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
+  <rect x="188" y="509" width="3" height="40" rx="1.5" fill="#4F6B9A"/>
+  <text x="203" y="526" font-size="16" fill="#1f2937">人体姿态估计</text>
+  <text x="203" y="542.5" font-size="13.5" fill="#4F6B9A">MediaPipe / ViTPose</text>
+  <rect x="393" y="509" width="200" height="40" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
+  <rect x="393" y="509" width="3" height="40" rx="1.5" fill="#4F6B9A"/>
+  <text x="408" y="526" font-size="16" fill="#1f2937">相机位姿/SLAM</text>
+  <text x="408" y="542.5" font-size="13.5" fill="#4F6B9A">COLMAP / MegaSaM</text>
+  <rect x="603" y="509" width="230" height="40" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
+  <rect x="603" y="509" width="3" height="40" rx="1.5" fill="#4F6B9A"/>
+  <text x="618" y="526" font-size="16" fill="#1f2937">单目深度估计</text>
+  <text x="618" y="542.5" font-size="13.5" fill="#4F6B9A">DAv2 / MoGe / UniDepth</text>
+  <rect x="188" y="557" width="258" height="40" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
+  <rect x="188" y="557" width="3" height="40" rx="1.5" fill="#4F6B9A"/>
+  <text x="203" y="574" font-size="16" fill="#1f2937">物体6DoF位姿</text>
+  <text x="203" y="590.5" font-size="13.5" fill="#4F6B9A">FoundationPose / MegaPose</text>
+  <rect x="456" y="557" width="242" height="40" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
+  <rect x="456" y="557" width="3" height="40" rx="1.5" fill="#4F6B9A"/>
+  <text x="471" y="574" font-size="16" fill="#1f2937">点轨迹/光流</text>
+  <text x="471" y="590.5" font-size="13.5" fill="#4F6B9A">TAPIR / CoTracker / RAFT</text>
+  <rect x="708" y="557" width="158" height="40" rx="5" fill="#F6F5F2" stroke="#DFDCD6"/>
+  <rect x="708" y="557" width="3" height="20" rx="1.5" fill="#9A6A2F"/>
+  <rect x="708" y="577" width="3" height="20" rx="1.5" fill="#4F6B9A"/>
+  <text x="723" y="574" font-size="16" fill="#1f2937">动作表示对齐</text>
+  <text x="723" y="590.5" font-size="13.5" fill="#6B7280">关节角→标准表示</text>
+  <text x="555.0" y="635" text-anchor="middle" font-size="16" fill="#6b7280">▼</text>
+  <rect x="24" y="648" width="150" height="122" rx="6" fill="#e5e7eb"/>
+  <text x="99.0" y="705.0" text-anchor="middle" font-size="17" font-weight="700" fill="#374151">语义标注</text>
+  <text x="99.0" y="727.0" text-anchor="middle" font-size="13" fill="#6b7280">§5 · 6 算子</text>
+  <rect x="174" y="648" width="762" height="122" rx="6" fill="#ffffff" stroke="#d1d5db"/>
+  <rect x="188" y="661" width="172" height="40" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
+  <rect x="188" y="661" width="3" height="40" rx="1.5" fill="#9A6A2F"/>
+  <text x="203" y="678" font-size="16" fill="#1f2937">时序同步/重采样</text>
+  <text x="203" y="694.5" font-size="13.5" fill="#8A6A45">视觉-动作时间对应</text>
+  <rect x="370" y="661" width="243" height="40" rx="5" fill="#F6F5F2" stroke="#DFDCD6"/>
+  <rect x="370" y="661" width="3" height="20" rx="1.5" fill="#9A6A2F"/>
+  <rect x="370" y="681" width="3" height="20" rx="1.5" fill="#4F6B9A"/>
+  <text x="385" y="678" font-size="16" fill="#1f2937">动作分割</text>
+  <text x="385" y="694.5" font-size="13.5" fill="#6B7280">腕速极小值切分 · CPU UDF</text>
+  <rect x="623" y="661" width="196" height="40" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
+  <rect x="623" y="661" width="3" height="40" rx="1.5" fill="#4F6B9A"/>
+  <text x="638" y="678" font-size="16" fill="#1f2937">语言指令生成</text>
+  <text x="638" y="694.5" font-size="13.5" fill="#4F6B9A">Qwen2.5-VL / LLaVA</text>
+  <rect x="188" y="709" width="172" height="40" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
+  <rect x="188" y="709" width="3" height="40" rx="1.5" fill="#4F6B9A"/>
+  <text x="203" y="726" font-size="16" fill="#1f2937">指令标准化/重写</text>
+  <text x="203" y="742.5" font-size="13.5" fill="#4F6B9A">VLM 统一术语</text>
+  <rect x="370" y="709" width="125" height="40" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
+  <rect x="370" y="709" width="3" height="40" rx="1.5" fill="#4F6B9A"/>
+  <text x="385" y="726" font-size="16" fill="#1f2937">子任务标注</text>
+  <text x="385" y="742.5" font-size="13.5" fill="#4F6B9A">VLM / 规则</text>
+  <rect x="505" y="709" width="153" height="40" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
+  <rect x="505" y="709" width="3" height="40" rx="1.5" fill="#4F6B9A"/>
+  <text x="520" y="726" font-size="16" fill="#1f2937">场景/物体描述</text>
+  <text x="520" y="742.5" font-size="13.5" fill="#4F6B9A">VLM</text>
+  <text x="555.0" y="787" text-anchor="middle" font-size="16" fill="#6b7280">▼</text>
+  <rect x="24" y="800" width="150" height="170" rx="6" fill="#e5e7eb"/>
+  <text x="99.0" y="881.0" text-anchor="middle" font-size="17" font-weight="700" fill="#374151">清洗与质检</text>
+  <text x="99.0" y="903.0" text-anchor="middle" font-size="13" fill="#6b7280">§6 · 8 算子</text>
+  <rect x="174" y="800" width="762" height="170" rx="6" fill="#ffffff" stroke="#d1d5db"/>
+  <rect x="188" y="813" width="244" height="40" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
+  <rect x="188" y="813" width="3" height="40" rx="1.5" fill="#9A6A2F"/>
+  <text x="203" y="830" font-size="16" fill="#1f2937">视频去重</text>
+  <text x="203" y="846.5" font-size="13.5" fill="#8A6A45">video_deduplicator · hash</text>
+  <rect x="442" y="813" width="160" height="40" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
+  <rect x="442" y="813" width="3" height="40" rx="1.5" fill="#4F6B9A"/>
+  <text x="457" y="830" font-size="16" fill="#1f2937">语义去重</text>
+  <text x="457" y="846.5" font-size="13.5" fill="#4F6B9A">CLIP embedding</text>
+  <rect x="612" y="813" width="173" height="40" rx="5" fill="#F6F5F2" stroke="#DFDCD6"/>
+  <rect x="612" y="813" width="3" height="20" rx="1.5" fill="#9A6A2F"/>
+  <rect x="612" y="833" width="3" height="20" rx="1.5" fill="#4F6B9A"/>
+  <text x="627" y="830" font-size="16" fill="#1f2937">质量过滤</text>
+  <text x="627" y="846.5" font-size="13.5" fill="#6B7280">清晰度/模糊/信噪比</text>
+  <rect x="188" y="861" width="132" height="40" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
+  <rect x="188" y="861" width="3" height="40" rx="1.5" fill="#4F6B9A"/>
+  <text x="203" y="878" font-size="16" fill="#1f2937">内容合规</text>
+  <text x="203" y="894.5" font-size="13.5" fill="#4F6B9A">NSFW 分类器</text>
+  <rect x="330" y="861" width="165" height="40" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
+  <rect x="330" y="861" width="3" height="40" rx="1.5" fill="#9A6A2F"/>
+  <text x="345" y="878" font-size="16" fill="#1f2937">异常值过滤</text>
+  <text x="345" y="894.5" font-size="13.5" fill="#8A6A45">关节越界/速度突变</text>
+  <rect x="505" y="861" width="158" height="40" rx="5" fill="#F6F5F2" stroke="#DFDCD6"/>
+  <rect x="505" y="861" width="3" height="20" rx="1.5" fill="#9A6A2F"/>
+  <rect x="505" y="881" width="3" height="20" rx="1.5" fill="#4F6B9A"/>
+  <text x="520" y="878" font-size="16" fill="#1f2937">多阶段QC</text>
+  <text x="520" y="894.5" font-size="13.5" fill="#6B7280">规则→模型→人工</text>
+  <rect x="673" y="861" width="190" height="40" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
+  <rect x="673" y="861" width="3" height="40" rx="1.5" fill="#4F6B9A"/>
+  <text x="688" y="878" font-size="16" fill="#1f2937">双模型互检</text>
+  <text x="688" y="894.5" font-size="13.5" fill="#4F6B9A">Hamer+HaWoR 示例</text>
+  <rect x="188" y="909" width="173" height="40" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
+  <rect x="188" y="909" width="3" height="40" rx="1.5" fill="#9A6A2F"/>
+  <text x="203" y="926" font-size="16" fill="#1f2937">分层抽检</text>
+  <text x="203" y="942.5" font-size="13.5" fill="#8A6A45">按源/场景/动作分层</text>
+  <text x="555.0" y="987" text-anchor="middle" font-size="16" fill="#6b7280">▼</text>
+  <rect x="24" y="1000" width="150" height="74" rx="6" fill="#e5e7eb"/>
+  <text x="99.0" y="1033.0" text-anchor="middle" font-size="17" font-weight="700" fill="#374151">脱敏与合规</text>
+  <text x="99.0" y="1055.0" text-anchor="middle" font-size="13" fill="#6b7280">§7 · 3 算子</text>
+  <rect x="174" y="1000" width="762" height="74" rx="6" fill="#ffffff" stroke="#d1d5db"/>
+  <rect x="188" y="1013" width="199" height="40" rx="5" fill="#F6F5F2" stroke="#DFDCD6"/>
+  <rect x="188" y="1013" width="3" height="20" rx="1.5" fill="#9A6A2F"/>
+  <rect x="188" y="1033" width="3" height="20" rx="1.5" fill="#4F6B9A"/>
+  <text x="203" y="1030" font-size="16" fill="#1f2937">人脸/车牌/隐私模糊</text>
+  <text x="203" y="1046.5" font-size="13.5" fill="#6B7280">检测后模糊</text>
+  <rect x="397" y="1013" width="144" height="40" rx="5" fill="#F2F4F8" stroke="#D8DEE9"/>
+  <rect x="397" y="1013" width="3" height="40" rx="1.5" fill="#4F6B9A"/>
+  <text x="412" y="1030" font-size="16" fill="#1f2937">隐私对象检测</text>
+  <text x="412" y="1046.5" font-size="13.5" fill="#4F6B9A">检测/OCR</text>
+  <rect x="551" y="1013" width="168" height="40" rx="5" fill="#F6F5F2" stroke="#DFDCD6"/>
+  <rect x="551" y="1013" width="3" height="20" rx="1.5" fill="#9A6A2F"/>
+  <rect x="551" y="1033" width="3" height="20" rx="1.5" fill="#4F6B9A"/>
+  <text x="566" y="1030" font-size="16" fill="#1f2937">合规审核</text>
+  <text x="566" y="1046.5" font-size="13.5" fill="#6B7280">模型预审+人工兜底</text>
+  <text x="555.0" y="1091" text-anchor="middle" font-size="16" fill="#6b7280">▼</text>
+  <rect x="24" y="1104" width="150" height="122" rx="6" fill="#e5e7eb"/>
+  <text x="99.0" y="1161.0" text-anchor="middle" font-size="17" font-weight="700" fill="#374151">格式与封装</text>
+  <text x="99.0" y="1183.0" text-anchor="middle" font-size="13" fill="#6b7280">§8 · 4 算子</text>
+  <rect x="174" y="1104" width="762" height="122" rx="6" fill="#ffffff" stroke="#d1d5db"/>
+  <rect x="188" y="1117" width="194" height="40" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
+  <rect x="188" y="1117" width="3" height="40" rx="1.5" fill="#9A6A2F"/>
+  <text x="203" y="1134" font-size="16" fill="#1f2937">状态向量提取</text>
+  <text x="203" y="1150.5" font-size="13.5" fill="#8A6A45">关节/位姿→state 向量</text>
+  <rect x="392" y="1117" width="142" height="40" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
+  <rect x="392" y="1117" width="3" height="40" rx="1.5" fill="#9A6A2F"/>
+  <text x="407" y="1134" font-size="16" fill="#1f2937">视频编码</text>
+  <text x="407" y="1150.5" font-size="13.5" fill="#8A6A45">H.264 / HEVC</text>
+  <rect x="544" y="1117" width="290" height="40" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
+  <rect x="544" y="1117" width="3" height="40" rx="1.5" fill="#9A6A2F"/>
+  <text x="559" y="1134" font-size="16" fill="#1f2937">数据集封装</text>
+  <text x="559" y="1150.5" font-size="13.5" fill="#8A6A45">LeRobot v2/v3 · RLDS · HDF5</text>
+  <rect x="188" y="1165" width="189" height="40" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
+  <rect x="188" y="1165" width="3" height="40" rx="1.5" fill="#9A6A2F"/>
+  <text x="203" y="1182" font-size="16" fill="#1f2937">元数据生成</text>
+  <text x="203" y="1198.5" font-size="13.5" fill="#8A6A45">时长/动作类型/版本号</text>
+  <text x="555.0" y="1243" text-anchor="middle" font-size="16" fill="#6b7280">▼</text>
+  <rect x="24" y="1256" width="150" height="74" rx="6" fill="#e5e7eb"/>
+  <text x="99.0" y="1289.0" text-anchor="middle" font-size="17" font-weight="700" fill="#374151">统计与采样</text>
+  <text x="99.0" y="1311.0" text-anchor="middle" font-size="13" fill="#6b7280">§9 · 3 算子</text>
+  <rect x="174" y="1256" width="762" height="74" rx="6" fill="#ffffff" stroke="#d1d5db"/>
+  <rect x="188" y="1269" width="180" height="40" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
+  <rect x="188" y="1269" width="3" height="40" rx="1.5" fill="#9A6A2F"/>
+  <text x="203" y="1286" font-size="16" fill="#1f2937">分层采样</text>
+  <text x="203" y="1302.5" font-size="13.5" fill="#8A6A45">训练/验证/测试/回归</text>
+  <rect x="378" y="1269" width="134" height="40" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
+  <rect x="378" y="1269" width="3" height="40" rx="1.5" fill="#9A6A2F"/>
+  <text x="393" y="1286" font-size="16" fill="#1f2937">类别均衡</text>
+  <text x="393" y="1302.5" font-size="13.5" fill="#8A6A45">欠采样/过采样</text>
+  <rect x="522" y="1269" width="173" height="40" rx="5" fill="#FAF6F0" stroke="#E7DCCB"/>
+  <rect x="522" y="1269" width="3" height="40" rx="1.5" fill="#9A6A2F"/>
+  <text x="537" y="1286" font-size="16" fill="#1f2937">覆盖度统计</text>
+  <text x="537" y="1302.5" font-size="13.5" fill="#8A6A45">场景/物体/动作分布</text>
 </svg>

@@ -1,0 +1,52 @@
+<svg width="960" height="302" viewBox="0 0 960 302" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'PingFang SC',system-ui,sans-serif">
+  <rect x="0" y="0" width="960" height="302" rx="12" fill="#f6f7f9"/>
+  <text x="24" y="34" font-size="20" fill="#1f2937" font-weight="700">算子任务生命周期状态机（示意）</text>
+  <text x="24" y="58" font-size="13" fill="#6b7280">失败路径经检查点续跑（at-least-once）；结构性失败不重试直接拦截</text>
+  <text x="24" y="88" font-size="12.5" font-weight="700" fill="#374151">主路径</text>
+  <rect x="38" y="96" width="103" height="40" rx="8" fill="#ffffff" stroke="#4F6B9A" stroke-width="1.5"/>
+  <text x="89" y="121" text-anchor="middle" font-size="14" font-weight="700" fill="#4F6B9A">Pending</text>
+  <line x1="144" y1="116" x2="282" y2="116" stroke="#6b7280" stroke-width="1.2"/>
+  <path d="M 282 112 l 7 3.5 l -7 3.5 z" fill="#6b7280"/>
+  <text x="216" y="108.0" text-anchor="middle" font-size="11" font-weight="700" fill="#1f2937">入队</text>
+  <text x="216" y="132.0" text-anchor="middle" font-size="10" fill="#6b7280">按优先级 / 池</text>
+  <rect x="290" y="96" width="100" height="40" rx="8" fill="#ffffff" stroke="#4F6B9A" stroke-width="1.5"/>
+  <text x="340" y="121" text-anchor="middle" font-size="14" font-weight="700" fill="#4F6B9A">Queued</text>
+  <line x1="394" y1="116" x2="532" y2="116" stroke="#6b7280" stroke-width="1.2"/>
+  <path d="M 532 112 l 7 3.5 l -7 3.5 z" fill="#6b7280"/>
+  <text x="466" y="108.0" text-anchor="middle" font-size="11" font-weight="700" fill="#1f2937">调度</text>
+  <text x="466" y="132.0" text-anchor="middle" font-size="10" fill="#6b7280">autoscaler 分配资源</text>
+  <rect x="540" y="96" width="104" height="40" rx="8" fill="#ffffff" stroke="#4F6B9A" stroke-width="1.5"/>
+  <text x="592" y="121" text-anchor="middle" font-size="14" font-weight="700" fill="#4F6B9A">Running</text>
+  <line x1="648" y1="116" x2="786" y2="116" stroke="#6b7280" stroke-width="1.2"/>
+  <path d="M 786 112 l 7 3.5 l -7 3.5 z" fill="#6b7280"/>
+  <text x="720" y="108.0" text-anchor="middle" font-size="11" font-weight="700" fill="#1f2937">完成</text>
+  <text x="720" y="132.0" text-anchor="middle" font-size="10" fill="#6b7280">全部算子过 Gate</text>
+  <rect x="794" y="96" width="128" height="40" rx="8" fill="#ffffff" stroke="#35705A" stroke-width="1.5"/>
+  <text x="858" y="121" text-anchor="middle" font-size="14" font-weight="700" fill="#35705A">Succeeded</text>
+  <text x="24" y="160" font-size="12.5" font-weight="700" fill="#374151">失败与重试路径</text>
+  <rect x="28" y="170" width="84" height="40" rx="8" fill="#ffffff" stroke="#A14E50" stroke-width="1.5"/>
+  <text x="70" y="195" text-anchor="middle" font-size="14" font-weight="700" fill="#A14E50">Failed</text>
+  <line x1="116" y1="190" x2="254" y2="190" stroke="#6b7280" stroke-width="1.2"/>
+  <path d="M 254 186 l 7 3.5 l -7 3.5 z" fill="#6b7280"/>
+  <text x="188" y="182.0" text-anchor="middle" font-size="11" font-weight="700" fill="#1f2937">瞬时 / 资源性</text>
+  <text x="188" y="206.0" text-anchor="middle" font-size="10" fill="#6b7280">退避重试 ≤3 · 从检查点</text>
+  <rect x="262" y="170" width="106" height="40" rx="8" fill="#ffffff" stroke="#9A6A2F" stroke-width="1.5"/>
+  <text x="316" y="195" text-anchor="middle" font-size="14" font-weight="700" fill="#9A6A2F">Retrying</text>
+  <line x1="372" y1="190" x2="510" y2="190" stroke="#6b7280" stroke-width="1.2"/>
+  <path d="M 510 186 l 7 3.5 l -7 3.5 z" fill="#6b7280"/>
+  <text x="444" y="182.0" text-anchor="middle" font-size="11" font-weight="700" fill="#1f2937">仍失败 / 结构性 / 超时</text>
+  <text x="444" y="206.0" text-anchor="middle" font-size="10" fill="#6b7280">进入终态不重试</text>
+  <rect x="518" y="170" width="147" height="40" rx="8" fill="#ffffff" stroke="#A14E50" stroke-width="1.5"/>
+  <text x="592" y="187" text-anchor="middle" font-size="14" font-weight="700" fill="#A14E50">Terminal</text>
+  <text x="592" y="202" text-anchor="middle" font-size="10.5" fill="#6b7280">Failed / TimedOut</text>
+  <line x1="670" y1="190" x2="808" y2="190" stroke="#6b7280" stroke-width="1.2"/>
+  <path d="M 808 186 l 7 3.5 l -7 3.5 z" fill="#6b7280"/>
+  <text x="740" y="182.0" text-anchor="middle" font-size="11" font-weight="700" fill="#1f2937">用户 / 系统</text>
+  <text x="740" y="206.0" text-anchor="middle" font-size="10" fill="#6b7280">取消沿 DAG 级联</text>
+  <rect x="816" y="170" width="116" height="40" rx="8" fill="#ffffff" stroke="#9A6A2F" stroke-width="1.5"/>
+  <text x="874" y="195" text-anchor="middle" font-size="14" font-weight="700" fill="#9A6A2F">Cancelled</text>
+  <rect x="24" y="232" width="912" height="58" rx="6" fill="#ffffff" stroke="#E4E3DD"/>
+  <text x="38" y="254" font-size="12" font-weight="700" fill="#4F6B9A">语义要点</text>
+  <text x="38" y="272" font-size="12" fill="#1f2937">① 重试基于检查点（§8），不做整段重跑；② 结构性失败（schema / 参数）直接拦截上报，不进入重试</text>
+  <text x="38" y="288" font-size="12" fill="#1f2937">③ 取消沿 DAG 级联传播；④ 数据性失败样本进 DLQ，不阻塞主流程（§7）</text>
+</svg>
