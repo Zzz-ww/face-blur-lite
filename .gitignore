@@ -15,5 +15,5 @@ docs/design.pdf
 .graphify/
 
 # 面试笔记（本地私有，不入库）
-docs/embodied-pipeline/面试笔记/
+docs/embodied-pipeline/99-面试/
 docs/embodied-pipeline/**/*.pdf

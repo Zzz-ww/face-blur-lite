@@ -2,7 +2,7 @@
 
 > **记录日期**：2026-09-29 · 修订 2026-10-11（增补业界实证：选型佐证、显存预算、§2.4 执行形态辨析、§1.1 LeRobot v3.0 落盘样例、管线全景补数据仿真源、§1.3 图示改外链 SVG 修复 GitHub 渲染）· 修订 2026-10-12（新增 §1.1.1 入口数据源：数据金字塔，三层明细整合于图示；整合 LeRobot v3.0 出口格式至 §1.1.2 统一小节：字段定义、落盘样例与单帧示例合并去重，路径模板与 info.json 键名校正为源码口径）· 修订 2026-10-13（新增 §2.5 Ray 处理流程示例两张 SVG：端到端泳道 + L2 Actor 调度 DAG，底稿 = 调研笔记-04 §1-§3 / 调研笔记-02 §6；附录补 MotionLabel3D 词条）
 > **背景**：围绕具身数据工程的三部分内容：一、具身数据管线四层蓝图与感知层模型选型、产出衡量；二、RayCluster 与 RayJob 调度辨析；三、GeoPT（*Lifted Geometric Pre-Training for Physics Simulation*，arXiv 2602.20399）理解与迁移设想。
-> **关联**：三章各有调研底稿细化——[调研笔记-01 · 模型选型](调研笔记/调研笔记-01-具身数据处理模型-场景化选型与管线结合.md)、[调研笔记-02 · Ray 框架](调研笔记/调研笔记-02-Ray分布式框架调研与管线应用.md)、[调研笔记-03 · GeoPT](调研笔记/调研笔记-03-GeoPT理解与迁移设想.md)；[调研笔记-04 · 阿里云 EMR 实践](调研笔记/调研笔记-04-阿里云EMR-Serverless-Spark-Ray具身数据管线最佳实践拆解.md)跨第一、二章作业界实证底稿（选型佐证 + 执行形态对照）。
+> **关联**：三章各有调研底稿细化——[调研笔记-01 · 模型选型](../92-调研笔记/调研笔记-01-具身数据处理模型-场景化选型与管线结合.md)、[调研笔记-02 · Ray 框架](../92-调研笔记/调研笔记-02-Ray分布式框架调研与管线应用.md)、[调研笔记-03 · GeoPT](../92-调研笔记/调研笔记-03-GeoPT理解与迁移设想.md)；[调研笔记-04 · 阿里云 EMR 实践](../92-调研笔记/调研笔记-04-阿里云EMR-Serverless-Spark-Ray具身数据管线最佳实践拆解.md)跨第一、二章作业界实证底稿（选型佐证 + 执行形态对照）。
 
 ---
 
@@ -45,7 +45,7 @@ LeRobotDataset v3.0
 
 > 行业共识是「数据金字塔」三层：顶层真机遥操作（精度最高、成本最高）、中层仿真合成（可扩展性最强）、底层人类行为 / 互联网视频（规模最大、成本最低）——三者组合使用才能同时满足**动作精度 × 场景多样性**的双重要求；本文管线处理的正是第三层「人类视频源」，经 L2 感知重建抬升为机器人可消费格式。
 
-![入口数据源数据金字塔：真机遥操作/仿真合成/人类视频三层组合，精度成本自顶向下递减、规模泛化递增；三层明细（采集方式/代表数据集/优势/局限/管线角色）整合于图内卡片](../assets/embodied-data-pyramid.svg)
+![入口数据源数据金字塔：真机遥操作/仿真合成/人类视频三层组合，精度成本自顶向下递减、规模泛化递增；三层明细（采集方式/代表数据集/优势/局限/管线角色）整合于图内卡片](../../assets/embodied-data-pyramid.svg)
 
 **开源数据集复用**（拿来即用层）：Open X-Embodiment、AgiBot World、RoboMIND、BridgeData V2、LeRobot Hub 数据集等可直接作训练 / 评测输入；注意各数据集**动作空间与文件格式不兼容**（LIBERO 仿真 vs RoboTwin 双臂 vs AgiBot World 真机），不能只看轨迹数决定能否混训——数据平台侧的经典归一化问题。
 
@@ -192,7 +192,7 @@ embodied_lerobot_dataset/
     经③camera_to_world 抬升 obj_pose_world
 ```
 
-**业界同款佐证**：阿里云 EMR Serverless Spark 官方实践《基于 EMR Serverless Spark Ray 打造具身智能数据管线》（微软 VITRA 思路，拆解见[调研笔记-04](调研笔记/调研笔记-04-阿里云EMR-Serverless-Spark-Ray具身数据管线最佳实践拆解.md)）与本表同款组合——HaWoR（内置 WiLoR 的 YOLO 检测器）+ MoGe-2 + MegaSAM + GeoCalib，覆盖 ②③④（未含 ⑤ 分割、⑥ 物体 6DoF）——上表选型由此获得业界交叉验证。其显存实测预算：
+**业界同款佐证**：阿里云 EMR Serverless Spark 官方实践《基于 EMR Serverless Spark Ray 打造具身智能数据管线》（微软 VITRA 思路，拆解见[调研笔记-04](../92-调研笔记/调研笔记-04-阿里云EMR-Serverless-Spark-Ray具身数据管线最佳实践拆解.md)）与本表同款组合——HaWoR（内置 WiLoR 的 YOLO 检测器）+ MoGe-2 + MegaSAM + GeoCalib，覆盖 ②③④（未含 ⑤ 分割、⑥ 物体 6DoF）——上表选型由此获得业界交叉验证。其显存实测预算：
 
 | 模型 | 显存 | 说明 |
 | --- | --- | --- |
@@ -203,7 +203,7 @@ embodied_lerobot_dataset/
 
 ### 1.3 通用数据产出衡量体系
 
-![通用数据产出衡量体系：三层质量递进（自洽 → GT 验证 → 训练收益）· 成本横切 · 回归闭环](../assets/embodied-metrics-system.svg)
+![通用数据产出衡量体系：三层质量递进（自洽 → GT 验证 → 训练收益）· 成本横切 · 回归闭环](../../assets/embodied-metrics-system.svg)
 
 **指标口径速查**（上图指标族的一句话口径）：
 
@@ -291,7 +291,7 @@ LeRobotDataset v3.0
 
 ### 2.4 业界实证：起停形态与常驻池的取舍
 
-阿里云 EMR Serverless Spark 官方实践（微软 VITRA 思路，拆解见[调研笔记-04](调研笔记/调研笔记-04-阿里云EMR-Serverless-Spark-Ray具身数据管线最佳实践拆解.md)）为 2.2 的维度表补上一组真实落位——L2 感知重建走与 2.3 常驻池**相反**的形态，且单张 16 GB 卡跑通合计 ~20 GB 的三模型：
+阿里云 EMR Serverless Spark 官方实践（微软 VITRA 思路，拆解见[调研笔记-04](../92-调研笔记/调研笔记-04-阿里云EMR-Serverless-Spark-Ray具身数据管线最佳实践拆解.md)）为 2.2 的维度表补上一组真实落位——L2 感知重建走与 2.3 常驻池**相反**的形态，且单张 16 GB 卡跑通合计 ~20 GB 的三模型：
 
 | 执行形态 | 形态 | 代价 | 适用 |
 | --- | --- | --- | --- |
@@ -304,11 +304,11 @@ LeRobotDataset v3.0
 
 ### 2.5 Ray 处理流程示例：端到端泳道与 L2 Actor 调度 DAG
 
-> 两张图把前文两种执行形态落到具体执行流：图 A 对应 2.4 的起停形态（CPU 头节点承担全部 I/O 密集阶段、GPU worker 只跑推理），图 B 对应 2.3 的常驻 Actor 池形态（单分片内六类执行体的依赖时序）。底稿：[调研笔记-04](调研笔记/调研笔记-04-阿里云EMR-Serverless-Spark-Ray具身数据管线最佳实践拆解.md) §1-§3、[调研笔记-02](调研笔记/调研笔记-02-Ray分布式框架调研与管线应用.md) §6。
+> 两张图把前文两种执行形态落到具体执行流：图 A 对应 2.4 的起停形态（CPU 头节点承担全部 I/O 密集阶段、GPU worker 只跑推理），图 B 对应 2.3 的常驻 Actor 池形态（单分片内六类执行体的依赖时序）。底稿：[调研笔记-04](../92-调研笔记/调研笔记-04-阿里云EMR-Serverless-Spark-Ray具身数据管线最佳实践拆解.md) §1-§3、[调研笔记-02](../92-调研笔记/调研笔记-02-Ray分布式框架调研与管线应用.md) §6。
 
 #### 2.5.1 图 A · 端到端泳道（CPU / GPU 职责分域）
 
-![Ray 编排的具身数据管线端到端处理流程泳道图：输入源 → CPU Driver 预处理 → GPU Worker 三模型串行推理 → CPU Driver 动作分割与写出 → LeRobotDataset v3.0 与 badcase 回流](../assets/ray-pipeline-e2e-swimlane.svg)
+![Ray 编排的具身数据管线端到端处理流程泳道图：输入源 → CPU Driver 预处理 → GPU Worker 三模型串行推理 → CPU Driver 动作分割与写出 → LeRobotDataset v3.0 与 badcase 回流](../../assets/ray-pipeline-e2e-swimlane.svg)
 
 - 职责分域：发现 / 预处理 / 动作分割 / 写出全部在 CPU driver 进程；GPU 侧唯一入口是 `@ray.remote(num_gpus=1)`，每视频一次推理，`ray.get` 阻塞取回 MotionLabel3D——Ray 只做编排不做计算
 - 显存换吞吐：三模型合计 ~20 GB 同进程串行加载、加载下一个前 `del` + `empty_cache`，挤进单张 16 GB 卡（2.4 对照表的实例化）；代价是三阶段无法流水线并行
@@ -317,7 +317,7 @@ LeRobotDataset v3.0
 
 #### 2.5.2 图 B · L2 感知重建层单分片调度 DAG（常驻 Actor 池形态）
 
-![L2 感知重建层 Ray Actor 调度时序 DAG：T0 三 Actor 并行 → T1 相机位姿等整段深度 → T2 平滑与 6DoF 等 mask → T3 位姿回注 → T4 CPU 一致性校验门 → T5 通过交 L3 或 badcase 回流](../assets/ray-l2-actor-dag.svg)
+![L2 感知重建层 Ray Actor 调度时序 DAG：T0 三 Actor 并行 → T1 相机位姿等整段深度 → T2 平滑与 6DoF 等 mask → T3 位姿回注 → T4 CPU 一致性校验门 → T5 通过交 L3 或 badcase 回流](../../assets/ray-l2-actor-dag.svg)
 
 - 最大并行窗口（T0）：DepthActor / HandActor Stage1 / SegTrackActor 三者只读 L1 RGB、互无输入依赖，收到分片同时调度，充分利用多 GPU
 - 两条强串行依赖是吞吐瓶颈：CamPoseActor ← 整段深度先验（全链路最大卡点，优化方向是增量 SLAM——深度逐帧流式送入、`ray.wait` 增量语义，消除整段等待）；Obj6DoFActor ← 深度 + 物体 mask（FoundationPose 要 RGB-D + ROI）
