@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 500" font-family="-apple-system,'PingFang SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="dG" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#2563eb"/></marker>
+    <marker id="dO" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#f59e0b"/></marker>
+    <marker id="dB" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#16a34a"/></marker>
+  </defs>
+  <rect x="0" y="0" width="960" height="500" rx="14" fill="#f8fafc"/>
+  <text x="28" y="38" font-size="18" font-weight="700" fill="#0f172a">四源接入适配 · 方言翻译层（示意）</text>
+  <text x="28" y="60" font-size="12.5" fill="#64748b">四源各自适配 → 字段归一成统一形态 → 三查上云；仿真 GT 在接入层分离出旁路通道，sim_GT 源头打标</text>
+
+  <!-- 左：四源输入 -->
+  <g font-size="10.5">
+    <rect x="24" y="96" width="180" height="52" rx="8" fill="#eff6ff" stroke="#2563eb"/>
+    <text x="114" y="118" font-size="11.5" font-weight="700" fill="#1e40af" text-anchor="middle">第一视角 ego</text>
+    <text x="114" y="138" fill="#475569" text-anchor="middle">AR/头显/互联网视频</text>
+
+    <rect x="24" y="160" width="180" height="52" rx="8" fill="#eff6ff" stroke="#2563eb"/>
+    <text x="114" y="182" font-size="11.5" font-weight="700" fill="#1e40af" text-anchor="middle">遥操作</text>
+    <text x="114" y="202" fill="#475569" text-anchor="middle">rosbag（话题/时间戳/坐标系）</text>
+
+    <rect x="24" y="224" width="180" height="52" rx="8" fill="#f0fdf4" stroke="#16a34a"/>
+    <text x="114" y="246" font-size="11.5" font-weight="700" fill="#166534" text-anchor="middle">仿真</text>
+    <text x="114" y="266" fill="#166534" text-anchor="middle">渲染输出（自带 GT）</text>
+
+    <rect x="24" y="288" width="180" height="52" rx="8" fill="#eff6ff" stroke="#2563eb"/>
+    <text x="114" y="310" font-size="11.5" font-weight="700" fill="#1e40af" text-anchor="middle">动捕/传感器</text>
+    <text x="114" y="330" fill="#475569" text-anchor="middle">marker/IMU/深度直读</text>
+  </g>
+
+  <!-- 中：适配器 -->
+  <rect x="240" y="84" width="360" height="280" rx="10" fill="#ffffff" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="420" y="110" font-size="13" font-weight="700" fill="#92400e" text-anchor="middle">接入适配器（本域 02 · 配置化路由）</text>
+  <g font-size="10.5">
+    <rect x="256" y="122" width="328" height="38" rx="6" fill="#fef3c7"/><text x="270" y="146" fill="#92400e">ego 适配：容器归一 / 流元数据 / 帧索引</text>
+    <rect x="256" y="168" width="328" height="38" rx="6" fill="#fef3c7"/><text x="270" y="192" fill="#92400e">rosbag 适配：话题解析 / 联合标定 / 真值直读</text>
+    <rect x="256" y="214" width="328" height="38" rx="6" fill="#fef3c7"/><text x="270" y="238" fill="#92400e">仿真适配：渲染映射 + GT 旁路分离</text>
+    <rect x="256" y="260" width="328" height="38" rx="6" fill="#fef3c7"/><text x="270" y="284" fill="#92400e">动捕适配：SDK 直采 / 动作对齐</text>
+    <text x="420" y="326" fill="#92400e" text-anchor="middle">时间同步 + 标定执行（四源必需 · 不合格不跨层）</text>
+    <text x="420" y="346" fill="#b45309" text-anchor="middle">适配器版本入三锁 · 映射表版本化 · 新设备加配置不加代码</text>
+  </g>
+
+  <!-- 右：归一层 + 三查 -->
+  <rect x="636" y="140" width="300" height="180" rx="10" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="786" y="166" font-size="13" font-weight="700" fill="#1e40af" text-anchor="middle">归一层 → 统一形态</text>
+  <text x="786" y="192" font-size="10.5" fill="#475569" text-anchor="middle">source_type · schema · 时基声明 · 合规标记</text>
+  <rect x="652" y="206" width="268" height="34" rx="6" fill="#eff6ff"/>
+  <text x="786" y="228" font-size="10.5" fill="#1e3a8a" text-anchor="middle">→ 本域 03 源头三查（完整性/schema/合规）</text>
+  <rect x="652" y="248" width="268" height="34" rx="6" fill="#eff6ff"/>
+  <text x="786" y="270" font-size="10.5" fill="#1e3a8a" text-anchor="middle">→ RawDataPackage（总线 §4.1）→ 生产域</text>
+  <text x="786" y="304" font-size="10" fill="#64748b" text-anchor="middle">下游生产域不感知源方言</text>
+
+  <!-- GT 旁路 -->
+  <rect x="636" y="336" width="300" height="88" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="786" y="362" font-size="12" font-weight="700" fill="#166534" text-anchor="middle">GT 旁路通道（仿真源）</text>
+  <text x="786" y="384" font-size="10.5" fill="#166534" text-anchor="middle">深度 / 位姿 / 分割 GT 直出</text>
+  <text x="786" y="402" font-size="10.5" fill="#166534" text-anchor="middle">label_source=sim_GT 源头打标</text>
+  <text x="786" y="418" font-size="9.5" fill="#64748b" text-anchor="middle">跳过感知重建 · 与主链物理分离（不混流）</text>
+
+  <!-- 箭头 -->
+  <line x1="204" y1="122" x2="238" y2="150" stroke="#2563eb" stroke-width="2" marker-end="url(#dG)"/>
+  <line x1="204" y1="186" x2="238" y2="196" stroke="#2563eb" stroke-width="2" marker-end="url(#dG)"/>
+  <line x1="204" y1="250" x2="238" y2="244" stroke="#16a34a" stroke-width="2" marker-end="url(#dG)"/>
+  <line x1="204" y1="314" x2="238" y2="290" stroke="#2563eb" stroke-width="2" marker-end="url(#dG)"/>
+  <line x1="600" y1="230" x2="634" y2="230" stroke="#2563eb" stroke-width="2" marker-end="url(#dG)"/>
+  <line x1="600" y1="270" x2="634" y2="262" stroke="#f59e0b" stroke-width="2" marker-end="url(#dO)"/>
+  <line x1="786" y1="252" x2="786" y2="334" stroke="#16a34a" stroke-width="2" marker-end="url(#dB)"/>
+</svg>

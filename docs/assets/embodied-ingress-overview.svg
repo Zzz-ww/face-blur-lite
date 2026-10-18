@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 500" font-family="-apple-system,'PingFang SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="iG" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#2563eb"/></marker>
+    <marker id="iO" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#f59e0b"/></marker>
+    <marker id="iB" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#16a34a"/></marker>
+  </defs>
+  <rect x="0" y="0" width="960" height="500" rx="14" fill="#f8fafc"/>
+  <text x="28" y="38" font-size="18" font-weight="700" fill="#0f172a">接入域全景 · 多源 → RawDataPackage（示意）</text>
+  <text x="28" y="60" font-size="12.5" fill="#64748b">四源（rosbag 是载体不是源）→ 适配器按源裁剪 → 源头三查（完整性/schema/合规）→ RawDataPackage → 生产域；仿真走 GT 旁路</text>
+
+  <!-- 四源 -->
+  <g font-size="11">
+    <rect x="24" y="96" width="216" height="64" rx="8" fill="#eff6ff" stroke="#2563eb"/>
+    <text x="132" y="120" font-size="12" font-weight="700" fill="#1e40af" text-anchor="middle">第一视角 ego</text>
+    <text x="132" y="142" fill="#1e3a8a" text-anchor="middle">AR/头显/互联网 · 无真值</text>
+    <text x="132" y="156" fill="#64748b" text-anchor="middle">视觉重建主线</text>
+
+    <rect x="256" y="96" width="216" height="64" rx="8" fill="#eff6ff" stroke="#2563eb"/>
+    <text x="364" y="120" font-size="12" font-weight="700" fill="#1e40af" text-anchor="middle">遥操作（rosbag 载体）</text>
+    <text x="364" y="142" fill="#1e3a8a" text-anchor="middle">关节流 + 相机 · 有真值</text>
+    <text x="364" y="156" fill="#64748b" text-anchor="middle">真值直读 · 跳过视觉重建</text>
+
+    <rect x="488" y="96" width="216" height="64" rx="8" fill="#f0fdf4" stroke="#16a34a"/>
+    <text x="596" y="120" font-size="12" font-weight="700" fill="#166534" text-anchor="middle">仿真（自带 GT）</text>
+    <text x="596" y="142" fill="#166534" text-anchor="middle">渲染 + 深度/位姿/分割 GT</text>
+    <text x="596" y="156" fill="#64748b" text-anchor="middle">GT 旁路 · 跳过感知重建</text>
+
+    <rect x="720" y="96" width="216" height="64" rx="8" fill="#eff6ff" stroke="#2563eb"/>
+    <text x="828" y="120" font-size="12" font-weight="700" fill="#1e40af" text-anchor="middle">动捕 / 传感器</text>
+    <text x="828" y="142" fill="#1e3a8a" text-anchor="middle">marker/IMU/深度直读</text>
+    <text x="828" y="156" fill="#64748b" text-anchor="middle">传感器直读 · 跳过重建</text>
+  </g>
+
+  <!-- 适配器 -->
+  <rect x="24" y="196" width="912" height="76" rx="10" fill="#ffffff" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="480" y="222" font-size="13" font-weight="700" fill="#92400e" text-anchor="middle">接入适配器（本域 02 · 按源类型/设备能力路由）</text>
+  <g font-size="10.5" text-anchor="middle" fill="#475569">
+    <text x="140" y="248">ego 视频导入</text>
+    <text x="350" y="248">rosbag 回放解析</text>
+    <text x="580" y="248">仿真器对接（GT 旁路入口）</text>
+    <text x="800" y="248">动捕 SDK / 传感器直采</text>
+    <text x="480" y="266" fill="#92400e">字段归一 → 统一 RawDataPackage 形态 · 时间同步 + 标定在此层执行（算子-05 四源必需）</text>
+  </g>
+
+  <!-- 源头三查 -->
+  <rect x="24" y="306" width="600" height="84" rx="10" fill="#ffffff" stroke="#dc2626" stroke-width="1.5"/>
+  <text x="324" y="332" font-size="13" font-weight="700" fill="#991b1b" text-anchor="middle">源头校验三查（本域 03 · 接入→生产准入）</text>
+  <g font-size="11" text-anchor="middle">
+    <rect x="48" y="344" width="168" height="34" rx="6" fill="#fee2e2"/><text x="132" y="365" fill="#991b1b">完整性（帧/流不丢不坏）</text>
+    <rect x="240" y="344" width="168" height="34" rx="6" fill="#fee2e2"/><text x="324" y="365" fill="#991b1b">schema（字段/时基齐）</text>
+    <rect x="432" y="344" width="168" height="34" rx="6" fill="#fee2e2"/><text x="516" y="365" fill="#991b1b">合规（隐私源已打标）</text>
+  </g>
+  <text x="324" y="378" font-size="10" fill="#991b1b" text-anchor="middle">不达标源头拦截 · 拦截在源头最省 GPU 成本</text>
+
+  <!-- 合规决策 -->
+  <rect x="644" y="306" width="292" height="84" rx="10" fill="#f1f5f9" stroke="#94a3b8"/>
+  <text x="790" y="332" font-size="12" font-weight="700" fill="#334155" text-anchor="middle">合规标记规则（治理 07）</text>
+  <text x="790" y="356" font-size="10.5" fill="#475569" text-anchor="middle">敏感判定 / 脱敏强度</text>
+  <text x="790" y="374" font-size="10.5" fill="#475569" text-anchor="middle">本篇执行源头打标 · 不自行定义</text>
+
+  <!-- RawDataPackage -->
+  <rect x="24" y="424" width="912" height="52" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="480" y="446" font-size="13" font-weight="700" fill="#166534" text-anchor="middle">RawDataPackage（输出制品 · 总线 §4.1）</text>
+  <text x="480" y="466" font-size="10.5" fill="#166534" text-anchor="middle">source_id · session_id · 设备型号 · 内参 · 时间戳基准 · 合规标记 + 源文件</text>
+
+  <!-- 箭头 -->
+  <line x1="132" y1="160" x2="132" y2="194" stroke="#2563eb" stroke-width="2" marker-end="url(#iG)"/>
+  <line x1="364" y1="160" x2="364" y2="194" stroke="#2563eb" stroke-width="2" marker-end="url(#iG)"/>
+  <line x1="596" y1="160" x2="596" y2="194" stroke="#16a34a" stroke-width="2" marker-end="url(#iG)"/>
+  <line x1="828" y1="160" x2="828" y2="194" stroke="#2563eb" stroke-width="2" marker-end="url(#iG)"/>
+  <line x1="480" y1="272" x2="480" y2="304" stroke="#f59e0b" stroke-width="2" marker-end="url(#iO)"/>
+  <line x1="324" y1="390" x2="324" y2="422" stroke="#dc2626" stroke-width="2" marker-end="url(#iG)"/>
+  <line x1="790" y1="348" x2="620" y2="352" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#iG)"/>
+  <line x1="480" y1="476" x2="480" y2="492" stroke="#16a34a" stroke-width="2" marker-end="url(#iB)"/>
+  <text x="500" y="492" font-size="11" font-weight="700" fill="#166534">→ 02-生产域（G0 接入 · 算子流水线）</text>
+</svg>
