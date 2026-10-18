@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" font-family="-apple-system,'PingFang SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="oA" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#f59e0b"/></marker>
+    <marker id="oB" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#2563eb"/></marker>
+    <marker id="oC" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#16a34a"/></marker>
+  </defs>
+  <rect x="0" y="0" width="960" height="560" rx="14" fill="#f8fafc"/>
+  <text x="28" y="38" font-size="18" font-weight="700" fill="#0f172a">快照与时间旅行 · CAS 指针共享（示意）</text>
+  <text x="28" y="60" font-size="12.5" fill="#64748b">快照是 manifest 指针清单、不是数据拷贝：未变块跨版本零拷贝共享，变更块新增；另加一层训练样本快照锁定"选择"</text>
+
+  <!-- 版本快照三卡 -->
+  <g font-size="11.5">
+    <!-- v1 -->
+    <rect x="40" y="88" width="280" height="132" rx="10" fill="#ffffff" stroke="#f59e0b" stroke-width="2"/>
+    <rect x="40" y="88" width="280" height="26" rx="10" fill="#fef3c7"/>
+    <text x="54" y="106" font-size="13" font-weight="700" fill="#92400e">快照 v1（Published）</text>
+    <text x="54" y="132" fill="#475569">表快照：schema/分区指针</text>
+    <text x="54" y="152" fill="#475569">存储 manifest：</text>
+    <g text-anchor="middle">
+      <rect x="58" y="162" width="36" height="22" rx="4" fill="#fffbeb" stroke="#f59e0b"/><text x="76" y="177" font-weight="700" fill="#92400e">A</text>
+      <rect x="102" y="162" width="36" height="22" rx="4" fill="#fffbeb" stroke="#f59e0b"/><text x="120" y="177" font-weight="700" fill="#92400e">B</text>
+      <rect x="146" y="162" width="36" height="22" rx="4" fill="#fffbeb" stroke="#f59e0b"/><text x="164" y="177" font-weight="700" fill="#92400e">C</text>
+      <text x="230" y="177" fill="#94a3b8">3 个 blob</text>
+    </g>
+    <text x="54" y="206" font-size="10.5" fill="#94a3b8">只读 · 只追加</text>
+
+    <!-- v2 -->
+    <rect x="340" y="88" width="280" height="132" rx="10" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+    <rect x="340" y="88" width="280" height="26" rx="10" fill="#dbeafe"/>
+    <text x="354" y="106" font-size="13" font-weight="700" fill="#1e40af">快照 v2（Published）</text>
+    <text x="354" y="132" fill="#475569">表快照：schema 演进（新增列）</text>
+    <text x="354" y="152" fill="#475569">存储 manifest：</text>
+    <g text-anchor="middle">
+      <rect x="358" y="162" width="30" height="22" rx="4" fill="#eff6ff" stroke="#2563eb"/><text x="373" y="177" font-weight="700" fill="#1e40af">A</text>
+      <rect x="394" y="162" width="30" height="22" rx="4" fill="#eff6ff" stroke="#2563eb"/><text x="409" y="177" font-weight="700" fill="#1e40af">B</text>
+      <rect x="430" y="162" width="30" height="22" rx="4" fill="#eff6ff" stroke="#2563eb"/><text x="445" y="177" font-weight="700" fill="#1e40af">D</text>
+      <rect x="466" y="162" width="30" height="22" rx="4" fill="#eff6ff" stroke="#2563eb"/><text x="481" y="177" font-weight="700" fill="#1e40af">E</text>
+      <text x="540" y="177" fill="#94a3b8">4 个 blob</text>
+    </g>
+    <text x="354" y="206" font-size="10.5" fill="#94a3b8">C 被删、D/E 新增</text>
+
+    <!-- v3 -->
+    <rect x="640" y="88" width="280" height="132" rx="10" fill="#ffffff" stroke="#16a34a" stroke-width="2"/>
+    <rect x="640" y="88" width="280" height="26" rx="10" fill="#dcfce7"/>
+    <text x="654" y="106" font-size="13" font-weight="700" fill="#166534">快照 v3（默认 · 现役）</text>
+    <text x="654" y="132" fill="#475569">表快照：schema/分区指针</text>
+    <text x="654" y="152" fill="#475569">存储 manifest：</text>
+    <g text-anchor="middle">
+      <rect x="658" y="162" width="30" height="22" rx="4" fill="#f0fdf4" stroke="#16a34a"/><text x="673" y="177" font-weight="700" fill="#166534">A</text>
+      <rect x="694" y="162" width="30" height="22" rx="4" fill="#f0fdf4" stroke="#16a34a"/><text x="709" y="177" font-weight="700" fill="#166534">B</text>
+      <rect x="730" y="162" width="30" height="22" rx="4" fill="#f0fdf4" stroke="#16a34a"/><text x="745" y="177" font-weight="700" fill="#166534">E</text>
+      <rect x="766" y="162" width="30" height="22" rx="4" fill="#f0fdf4" stroke="#16a34a"/><text x="781" y="177" font-weight="700" fill="#166534">F</text>
+      <text x="840" y="177" fill="#94a3b8">4 个 blob</text>
+    </g>
+    <text x="654" y="206" font-size="10.5" fill="#94a3b8">D 被删、F 新增</text>
+  </g>
+
+  <!-- 代表箭头：三色汇聚到共享 blob A/B -->
+  <line x1="180" y1="220" x2="130" y2="276" stroke="#f59e0b" stroke-width="1.6" marker-end="url(#oA)"/>
+  <line x1="480" y1="220" x2="130" y2="276" stroke="#2563eb" stroke-width="1.6" marker-end="url(#oB)"/>
+  <line x1="780" y1="220" x2="130" y2="276" stroke="#16a34a" stroke-width="1.6" marker-end="url(#oC)"/>
+  <text x="300" y="252" font-size="10.5" fill="#475569">A/B 三版共用 → 未变块零拷贝</text>
+
+  <!-- CAS blob 池 -->
+  <rect x="40" y="280" width="880" height="150" rx="10" fill="#f1f5f9" stroke="#94a3b8"/>
+  <text x="56" y="302" font-size="12.5" font-weight="700" fill="#334155">_cas/ 内容寻址 blob 池（对象存储 · 按内容 hash 去重）</text>
+  <g font-size="11" text-anchor="middle">
+    <g>
+      <rect x="60" y="314" width="120" height="100" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+      <text x="120" y="340" font-size="13" font-weight="700" fill="#334155">blob A</text>
+      <circle cx="98" cy="362" r="5" fill="#f59e0b"/><circle cx="120" cy="362" r="5" fill="#2563eb"/><circle cx="142" cy="362" r="5" fill="#16a34a"/>
+      <text x="120" y="390" fill="#16a34a" font-weight="700">3 版共享</text>
+    </g>
+    <g>
+      <rect x="200" y="314" width="120" height="100" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+      <text x="260" y="340" font-size="13" font-weight="700" fill="#334155">blob B</text>
+      <circle cx="238" cy="362" r="5" fill="#f59e0b"/><circle cx="260" cy="362" r="5" fill="#2563eb"/><circle cx="282" cy="362" r="5" fill="#16a34a"/>
+      <text x="260" y="390" fill="#16a34a" font-weight="700">3 版共享</text>
+    </g>
+    <g>
+      <rect x="340" y="314" width="120" height="100" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+      <text x="400" y="340" font-size="13" font-weight="700" fill="#334155">blob C</text>
+      <circle cx="400" cy="362" r="5" fill="#f59e0b"/>
+      <text x="400" y="390" fill="#b45309" font-weight="700">仅 v1</text>
+    </g>
+    <g>
+      <rect x="480" y="314" width="120" height="100" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+      <text x="540" y="340" font-size="13" font-weight="700" fill="#334155">blob D</text>
+      <circle cx="540" cy="362" r="5" fill="#2563eb"/>
+      <text x="540" y="390" fill="#1d4ed8" font-weight="700">仅 v2</text>
+    </g>
+    <g>
+      <rect x="620" y="314" width="120" height="100" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+      <text x="680" y="340" font-size="13" font-weight="700" fill="#334155">blob E</text>
+      <circle cx="668" cy="362" r="5" fill="#2563eb"/><circle cx="692" cy="362" r="5" fill="#16a34a"/>
+      <text x="680" y="390" fill="#16a34a" font-weight="700">v2/v3 共享</text>
+    </g>
+    <g>
+      <rect x="760" y="314" width="120" height="100" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="2"/>
+      <text x="820" y="340" font-size="13" font-weight="700" fill="#334155">blob F</text>
+      <circle cx="820" cy="362" r="5" fill="#16a34a"/>
+      <text x="820" y="390" fill="#16a34a" font-weight="700">v3 新增</text>
+    </g>
+  </g>
+
+  <!-- 时间旅行说明 -->
+  <rect x="40" y="446" width="430" height="62" rx="8" fill="#eff6ff" stroke="#93c5fd"/>
+  <text x="54" y="470" font-size="12" font-weight="700" fill="#1e40af">时间旅行（取数通道）</text>
+  <text x="54" y="490" font-size="11" fill="#1e3a8a">snapshot(version) / 按时间点只读挂载</text>
+  <text x="54" y="506" font-size="11" fill="#1e3a8a">恢复 ≠ 回滚（回滚是治理切指针）</text>
+
+  <!-- 训练样本快照 -->
+  <rect x="490" y="446" width="430" height="62" rx="8" fill="#f0fdf4" stroke="#16a34a"/>
+  <text x="504" y="470" font-size="12" font-weight="700" fill="#166534">训练样本快照（第三层 · 选择）</text>
+  <text x="504" y="490" font-size="11" fill="#166534">sample_manifest：s_0001 … s_30412（逐样本引用）</text>
+  <text x="504" y="506" font-size="10.5" fill="#16a34a">+ 采样率/过滤条件/seed → 训练逐位可复现</text>
+</svg>
