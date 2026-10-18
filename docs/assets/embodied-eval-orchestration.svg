@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 500" font-family="-apple-system,'PingFang SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="eG" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#2563eb"/></marker>
+    <marker id="eO" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#f59e0b"/></marker>
+    <marker id="eR" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#dc2626"/></marker>
+    <marker id="eB" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#16a34a"/></marker>
+  </defs>
+  <rect x="0" y="0" width="960" height="500" rx="14" fill="#f8fafc"/>
+  <text x="28" y="38" font-size="18" font-weight="700" fill="#0f172a">L4 评测执行 · 取数与任务编排（示意）</text>
+  <text x="28" y="60" font-size="12.5" fill="#64748b">标准在治理 04（考务方），本篇是执行者：白名单取数 → 评测即消费四步 → 考场分工 → 报告归档 / badcase 转回流</text>
+
+  <!-- 左：触发 -->
+  <rect x="24" y="130" width="150" height="150" rx="10" fill="#ffffff" stroke="#94a3b8"/>
+  <text x="99" y="156" font-size="12" font-weight="700" fill="#334155" text-anchor="middle">评测触发</text>
+  <text x="99" y="182" font-size="11" fill="#475569" text-anchor="middle">发布前回归（治理 05）</text>
+  <text x="99" y="202" font-size="11" fill="#475569" text-anchor="middle">定期巡评</text>
+  <text x="99" y="222" font-size="11" fill="#475569" text-anchor="middle">消融实验请求</text>
+  <text x="99" y="252" font-size="10" fill="#64748b" text-anchor="middle">Golden 回归最高优</text>
+  <text x="99" y="270" font-size="10" fill="#64748b" text-anchor="middle">（卡发布审批）</text>
+
+  <!-- 中：评测任务四步 -->
+  <rect x="210" y="84" width="300" height="280" rx="10" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="360" y="108" font-size="13" font-weight="700" fill="#1e40af" text-anchor="middle">评测任务（RayJob · 管控域调度）</text>
+
+  <rect x="226" y="120" width="268" height="42" rx="6" fill="#eff6ff"/>
+  <text x="240" y="140" font-size="11.5" fill="#1e3a8a">① 取数：白名单 release（test/hold-out）</text>
+  <text x="240" y="156" font-size="10" fill="#64748b">或仿真套件（合成考场）· 版本精确引用</text>
+
+  <rect x="226" y="170" width="268" height="42" rx="6" fill="#eff6ff"/>
+  <text x="240" y="190" font-size="11.5" fill="#1e3a8a">② 校验/就绪：hash 对账 + 数据就绪</text>
+  <text x="240" y="206" font-size="10" fill="#64748b">同消费四步：拿/验/就绪/留痕</text>
+
+  <rect x="226" y="220" width="268" height="42" rx="6" fill="#eff6ff"/>
+  <text x="240" y="240" font-size="11.5" fill="#1e3a8a">③ 执行：模型跑 episode 采集成功率</text>
+  <text x="240" y="256" font-size="10" fill="#64748b">多 episode 均值 + 置信区间 · 分任务类型</text>
+
+  <rect x="226" y="270" width="268" height="42" rx="6" fill="#eff6ff"/>
+  <text x="240" y="290" font-size="11.5" fill="#1e3a8a">④ 回写：评测消费登记血缘</text>
+  <text x="240" y="306" font-size="10" fill="#64748b">评测样本快照（可复现评测）</text>
+
+  <text x="360" y="344" font-size="10.5" fill="#64748b" text-anchor="middle">评测/训练共享 GPU 池分队列 · 短任务高优先</text>
+
+  <!-- 右：考场分工 -->
+  <rect x="546" y="130" width="390" height="160" rx="10" fill="#ffffff" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="741" y="156" font-size="12.5" font-weight="700" fill="#166534" text-anchor="middle">考场分工（对齐治理 04 §4）</text>
+
+  <rect x="560" y="170" width="180" height="76" rx="8" fill="#f0fdf4" stroke="#86efac"/>
+  <text x="650" y="194" font-size="11.5" font-weight="700" fill="#166534" text-anchor="middle">仿真任务套件</text>
+  <text x="650" y="214" font-size="10.5" fill="#475569" text-anchor="middle">大量 · 低成本 · 高频</text>
+  <text x="650" y="234" font-size="10.5" fill="#475569" text-anchor="middle">消融 · 域差监测</text>
+
+  <rect x="748" y="170" width="176" height="76" rx="8" fill="#fff7ed" stroke="#fdba74"/>
+  <text x="836" y="194" font-size="11.5" font-weight="700" fill="#c2410c" text-anchor="middle">真机 Hold-out</text>
+  <text x="836" y="214" font-size="10.5" fill="#9a3412" text-anchor="middle">少量 · 贵 · 冻结</text>
+  <text x="836" y="234" font-size="10.5" fill="#9a3412" text-anchor="middle">只做最终结论</text>
+
+  <text x="741" y="270" font-size="10.5" fill="#64748b" text-anchor="middle">伪 GT 只作域间参照 · 不做结论</text>
+  <text x="741" y="286" font-size="10.5" fill="#64748b" text-anchor="middle">基线读治理 05 §4 注册表（只读不维护）</text>
+
+  <!-- 下：产出 -->
+  <rect x="210" y="396" width="726" height="48" rx="8" fill="#f1f5f9" stroke="#94a3b8"/>
+  <text x="573" y="416" font-size="11.5" font-weight="700" fill="#334155" text-anchor="middle">EvaluationReport（L4 部分 + recommendations）</text>
+  <text x="573" y="436" font-size="10.5" fill="#64748b" text-anchor="middle">归档治理 04 · 进发布物料治理 05 · 评测失败样本转 03-Badcase 回流</text>
+
+  <!-- 箭头 -->
+  <line x1="174" y1="205" x2="208" y2="205" stroke="#f59e0b" stroke-width="2" marker-end="url(#eG)"/>
+  <line x1="510" y1="205" x2="544" y2="205" stroke="#16a34a" stroke-width="2" marker-end="url(#eG)"/>
+  <line x1="360" y1="364" x2="360" y2="394" stroke="#2563eb" stroke-width="2" marker-end="url(#eG)"/>
+
+  <!-- badcase 转 03 -->
+  <line x1="573" y1="444" x2="573" y2="478" stroke="#dc2626" stroke-width="2" marker-end="url(#eR)"/>
+  <text x="620" y="472" font-size="10.5" fill="#991b1b">→ 03-Badcase 回流（最大发现源）</text>
+</svg>
