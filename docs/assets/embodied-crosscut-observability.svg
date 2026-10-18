@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 520" font-family="-apple-system,'PingFang SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="oG" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#2563eb"/></marker>
+    <marker id="oO" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#f59e0b"/></marker>
+    <marker id="oR" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#a14e50"/></marker>
+  </defs>
+  <rect x="0" y="0" width="960" height="520" rx="14" fill="#f8fafc"/>
+  <text x="28" y="38" font-size="18" font-weight="700" fill="#0f172a">统一观测平台 · 四类信号 × 三层 SLO（示意）</text>
+  <text x="28" y="60" font-size="12.5" fill="#64748b">六域埋点 → 指标/追踪/日志/告警四仓 → 观测台；观测面与控制面分离，合规告警 P0 硬纪律</text>
+
+  <!-- 左：六域埋点 -->
+  <rect x="24" y="96" width="200" height="200" rx="10" fill="#ffffff" stroke="#94a3b8"/>
+  <text x="124" y="122" font-size="12.5" font-weight="700" fill="#334155" text-anchor="middle">六域埋点</text>
+  <g font-size="10.5">
+    <rect x="36" y="134" width="176" height="26" rx="5" fill="#f1f5f9"/><text x="124" y="151" fill="#475569" text-anchor="middle">接入域：三查/拦截/上云指标</text>
+    <rect x="36" y="166" width="176" height="26" rx="5" fill="#f1f5f9"/><text x="124" y="183" fill="#475569" text-anchor="middle">生产域：算子五类埋点（SSOT）</text>
+    <rect x="36" y="198" width="176" height="26" rx="5" fill="#f1f5f9"/><text x="124" y="215" fill="#475569" text-anchor="middle">管控域：作业/队列/配额</text>
+    <rect x="36" y="230" width="176" height="26" rx="5" fill="#f1f5f9"/><text x="124" y="247" fill="#475569" text-anchor="middle">治理/资产/消费域：门禁/目录/导出</text>
+  </g>
+  <text x="124" y="284" font-size="10" fill="#64748b" text-anchor="middle">埋点不改变算子语义（影子观测）</text>
+
+  <!-- 中：四仓 -->
+  <rect x="260" y="96" width="430" height="200" rx="10" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="475" y="122" font-size="12.5" font-weight="700" fill="#1e40af" text-anchor="middle">统一观测平台（四类信号收口）</text>
+  <g font-size="10.5">
+    <rect x="274" y="134" width="196" height="56" rx="6" fill="#eff6ff"/><text x="372" y="156" font-weight="700" fill="#1e40af" text-anchor="middle">指标仓库</text><text x="372" y="176" fill="#475569" text-anchor="middle">吞吐/失败/成本每样本/队列</text>
+    <rect x="480" y="134" width="196" height="56" rx="6" fill="#eff6ff"/><text x="578" y="156" font-weight="700" fill="#1e40af" text-anchor="middle">追踪服务</text><text x="578" y="176" fill="#475569" text-anchor="middle">样本级 trace（与血缘同源）</text>
+    <rect x="274" y="200" width="196" height="56" rx="6" fill="#eff6ff"/><text x="372" y="222" font-weight="700" fill="#1e40af" text-anchor="middle">日志中心</text><text x="372" y="242" fill="#475569" text-anchor="middle">算子/作业/审计分仓</text>
+    <rect x="480" y="200" width="196" height="56" rx="6" fill="#fef3c7" stroke="#f59e0b"/><text x="578" y="222" font-weight="700" fill="#92400e" text-anchor="middle">告警中心</text><text x="578" y="242" fill="#92400e" text-anchor="middle">P0 合规硬告警 / P1 / P2</text>
+  </g>
+  <text x="475" y="284" font-size="10" fill="#64748b" text-anchor="middle">观测面与控制面分离 · 观测自身也被观测</text>
+
+  <!-- 右：SLO 三层 -->
+  <rect x="726" y="96" width="210" height="200" rx="10" fill="#ffffff" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="831" y="122" font-size="12.5" font-weight="700" fill="#166534" text-anchor="middle">SLO 三层治理</text>
+  <g font-size="10">
+    <rect x="738" y="134" width="186" height="44" rx="6" fill="#f0fdf4"/><text x="831" y="152" font-weight="700" fill="#166534" text-anchor="middle">平台级</text><text x="831" y="170" fill="#166534" text-anchor="middle">管线成功率≥99% · 回归24h</text>
+    <rect x="738" y="186" width="186" height="44" rx="6" fill="#f0fdf4"/><text x="831" y="204" font-weight="700" fill="#166534" text-anchor="middle">域级</text><text x="831" y="222" fill="#166534" text-anchor="middle">三查100% · 违规率=0</text>
+    <rect x="738" y="238" width="186" height="44" rx="6" fill="#f0fdf4"/><text x="831" y="256" font-weight="700" fill="#166534" text-anchor="middle">算子级</text><text x="831" y="274" fill="#166534" text-anchor="middle">五类指标（算子-03 §10）</text>
+  </g>
+  <text x="831" y="294" font-size="9.5" fill="#64748b" text-anchor="middle">下层指标喂上层 · 不重复定义</text>
+
+  <!-- 下：消费侧 -->
+  <rect x="260" y="330" width="676" height="72" rx="10" fill="#ffffff" stroke="#94a3b8"/>
+  <text x="598" y="356" font-size="12.5" font-weight="700" fill="#334155" text-anchor="middle">观测消费方</text>
+  <text x="598" y="380" font-size="10.5" fill="#475569" text-anchor="middle">运维值班（P0 拉人）· SLO 治理台（分层达成）· 成本视图（算子→数据集→项目，喂 L3/L4）· 归因闭环（trace 定位 badcase）</text>
+
+  <!-- 箭头 -->
+  <line x1="224" y1="196" x2="258" y2="196" stroke="#2563eb" stroke-width="2" marker-end="url(#oG)"/>
+  <line x1="690" y1="196" x2="724" y2="196" stroke="#16a34a" stroke-width="2" marker-end="url(#oG)"/>
+  <line x1="475" y1="296" x2="475" y2="328" stroke="#2563eb" stroke-width="2" marker-end="url(#oG)"/>
+
+  <!-- 合规告警联动 -->
+  <path d="M 578 256 L 578 308 L 831 308 L 831 340" fill="none" stroke="#a14e50" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#oR)"/>
+  <text x="700" y="324" font-size="9.5" fill="#a14e50">合规违规 P0 硬告警 · 只有人确认才能消（联动治理 07）</text>
+</svg>
