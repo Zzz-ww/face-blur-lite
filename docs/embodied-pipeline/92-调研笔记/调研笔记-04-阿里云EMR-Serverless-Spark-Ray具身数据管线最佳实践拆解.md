@@ -1,16 +1,16 @@
 # 调研笔记 04：阿里云 EMR Serverless Spark Ray 具身数据管线最佳实践拆解
 
-> 调研底稿：阿里云官方实践教程《基于 EMR Serverless Spark Ray 打造具身智能数据管线》（https://help.aliyun.com/zh/emr/emr-serverless-spark/use-cases/build-embodied-ai-data-pipeline-with-emr-serverless-spark-ray，访问于 2026-10-11），技术思路源自微软研究院 VITRA 论文。本篇拆解其五段流水线、显存/冷启动/依赖三组工程优化与 pyjindo 实战坑，并逐条映射到《面试提纲-百度具身负责人面》可引用的弹药点。
+> 调研底稿：阿里云官方实践教程《基于 EMR Serverless Spark Ray 打造具身智能数据管线》（https://help.aliyun.com/zh/emr/emr-serverless-spark/use-cases/build-embodied-ai-data-pipeline-with-emr-serverless-spark-ray，访问于 2026-10-11），技术思路源自微软研究院 VITRA 论文。本篇拆解其五段流水线、显存/冷启动/依赖三组工程优化与 pyjindo 实战坑，并逐条映射到《本地出口提纲》可引用的弹药点。
 
 ## 0. 调研背景与问题
 
 - 这是什么：阿里云 EMR Serverless Spark 的官方最佳实践，在托管 Ray 集群上把**第一视角人类视频**转成 LeRobotDataset v3.0 格式的 VLA 训练数据。
-- 为什么值得看：与我们 L2 感知管线技术栈同构（HaWoR / MoGe-2 / MegaSAM / Ray），且是**云厂商官方背书**的架构——面试聊 Ray 选型时是最硬的行业佐证。
+- 为什么值得看：与我们 L2 感知管线技术栈同构（HaWoR / MoGe-2 / MegaSAM / Ray），且是**云厂商官方背书**的架构——聊 Ray 选型时是最硬的行业佐证。
 - 要回答的问题：
   1. 官方实践的管线怎么分阶段？和我们的 L1/L2/L3 分层什么关系？
   2. 单张 16GB 卡怎么装下合计 ~20GB 显存的三个模型？
   3. 冷启动（模型下载 + CUDA 扩展编译）怎么优化？
-  4. 哪些点可以直接引用进面试回答？
+  4. 哪些点可以直接引用进口述回答？
 
 ## 1. 管线全景：五段流水线
 
@@ -95,7 +95,7 @@ dataset/
 └── videos/observation.images.ego/chunk-000/file-000.mp4   # H.264, 1280x720@30fps
 ```
 
-## 4. 工程优化三板斧（面试核心弹药）
+## 4. 工程优化三板斧（核心弹药）
 
 ### 4.1 显存复用：串行加载、用完即卸
 
@@ -124,11 +124,11 @@ dataset/
 | MoGe-2 依赖 xformers 的 MemEffAttention | patch 成 PyTorch 原生 SDPA |
 | OSS 凭证管理 | 节点 RAM 角色免 AK/SK，提交机不落明文密钥 |
 
-- 全部是"真跑过"的细节——面试里引用可信度远高于纯理论推导。
+- 全部是"真跑过"的细节——讲解时引用可信度远高于纯理论推导。
 
-## 6. 面试弹药映射表
+## 6. 弹药映射表
 
-对《面试提纲-百度具身负责人面》逐题标注可引用点：
+对《本地出口提纲》逐题标注可引用点：
 
 | 提纲题目 | 引用点 | 一句话话术 |
 |---|---|---|
@@ -150,7 +150,7 @@ dataset/
 1. Ray 选型佐证："这套选型不是我拍脑袋——阿里云 EMR Serverless Spark 今年官方最佳实践就是同样架构：CPU 头节点跑 driver 和预处理，GPU worker 用 ray.remote(num_gpus=1) 跑 HaWoR、MoGe-2、MegaSAM 串行推理，最后写 LeRobotDataset v3.0。"
 2. 显存工程："显存受限时三个 ~20G 的模型可以在单进程内串行加载、用完即卸，挤进一张 16GB 卡；代价是三阶段不能流水线并行——这就是显存和吞吐的取舍。"
 
-## 7. 与自研 L2 管线对照（差异点 = 面试辨析素材）
+## 7. 与自研 L2 管线对照（差异点 = 辨析素材）
 
 | 维度 | 阿里 EMR 官方实践 | 我们的 L2 管线 |
 |---|---|---|
@@ -161,7 +161,7 @@ dataset/
 | 数据出口 | LeRobotDataset v3.0 | 自定义 L3 样本格式（可对齐 v3.0 标准） |
 | 规模定位 | 教程级单集群演示 | 平台级：多源接入、质检门、badcase 回流闭环 |
 
-- 面试辨析话术：官方实践解决"一条视频→一个数据集"的链路打通；平台化要解决的是多源接入、质量门禁、回流闭环——正好是我们 L1/L2/L3 分层 + 三层评测 + badcase 回流补的那一层。
+- 辨析话术：官方实践解决"一条视频→一个数据集"的链路打通；平台化要解决的是多源接入、质量门禁、回流闭环——正好是我们 L1/L2/L3 分层 + 三层评测 + badcase 回流补的那一层。
 
 ## 8. 附：模型权重清单（~4.5GB，自行下载传 OSS）
 
@@ -177,4 +177,4 @@ dataset/
 ## 来源
 
 - 阿里云帮助中心：《基于 EMR Serverless Spark Ray 打造具身智能数据管线》（实践教程 → AI 能力集成 → 具身智能），URL 见文首，访问于 2026-10-11。
-- 关联：VITRA（微软研究院，第一视角视频处理思路）；本仓库《调研笔记-02》（Ray 架构与 remote function/Actor 语义）、《面试提纲-百度具身负责人面》（弹药映射目标）。
+- 关联：VITRA（微软研究院，第一视角视频处理思路）；本仓库《调研笔记-02》（Ray 架构与 remote function/Actor 语义）、《本地出口提纲》（弹药映射目标）。

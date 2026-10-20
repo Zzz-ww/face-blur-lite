@@ -73,6 +73,6 @@
 - 项目页：https://nvlabs.github.io/FoundationPose/
 - arXiv：https://arxiv.org/abs/2312.08344
 
-## 面试话术（30 秒）
+## 速讲话术（30 秒）
 
 > "物体 6DoF 用 FoundationPose，CVPR 2024 Highlight，NVIDIA 出品，核心能力是 RGB-D 零样本跟踪——不用针对每个物体训练，有 CAD 用 CAD 模式，没有就用少样本 test-time 优化建模板。它在管线里是汇聚输入最多的算子：MoGe 深度当 D 通道、分割 mask 做 ROI、HaWoR 的尺度锚给初值、相机矩阵做后处理抬世界系。优化全程在相机系，出来再乘 camera_to_world 到世界系，和手部轨迹组合出手-物相对位姿，这是操作数据最有价值的结构。两个工程红线：深度误差会直接放大成位姿误差，坏帧要先过互检门；相机矩阵绝不进优化回路，只做后处理。遮挡和出帧造成的跳变我们用位姿时序跳变幅度这个指标来抓。"

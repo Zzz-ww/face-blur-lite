@@ -73,6 +73,6 @@
 - Depth Anything V2：https://github.com/DepthAnything/Depth-Anything-V2
 - 业内实证（PAI 改进版 MegaSAM 消费 MoGe-2 深度）：https://segmentfault.com/a/1190000047726957
 
-## 面试话术（30 秒）
+## 速讲话术（30 秒）
 
 > "单目深度是感知管线的尺度源头，我们用 MoGe 加 Depth Anything V2 双模型互检：MoGe 是 CVPR 2025 Oral，一站式输出 metric 深度、点云、法线加 FoV，做主尺度基准；DAv2 出相对视差，泛化强、速度快，专做交叉校验找异常帧。它的下游有五路：深度喂 SLAM 做先验、FoV 反哺手部投影约束、深度给 FoundationPose 当 D 通道、和 DAv2 互检、法线点云直接出产物。关键红线是 MoGe 宣称 metric 但弱纹理遮挡下照样漂移，而深度漂移会沿着尺度链传导给相机轨迹、手部和物体，所以 L2 出口必须做统一的几何一致性校验，深度永远不能被无条件信任。"

@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 520" font-family="-apple-system,'PingFang SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="rG" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#2563eb"/></marker>
+    <marker id="rB" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#16a34a"/></marker>
+    <marker id="rO" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#f59e0b"/></marker>
+  </defs>
+  <rect x="0" y="0" width="960" height="520" rx="14" fill="#f8fafc"/>
+  <text x="28" y="38" font-size="18" font-weight="700" fill="#0f172a">声明式 reconcile · 期望态收敛（04 §6，示意）</text>
+  <text x="28" y="60" font-size="12.5" fill="#64748b">读血缘 diff → 已存在跳过 / 失效级联重跑 → 只调度缺失节点 → 过 Gate → 落库登记；断点续跑是推论</text>
+
+  <!-- 流程 -->
+  <rect x="330" y="84" width="300" height="46" rx="8" fill="#eff6ff" stroke="#2563eb"/>
+  <text x="480" y="111" font-size="11.5" font-weight="700" fill="#1e40af" text-anchor="middle">① 用户声明期望数据集（outputs+版本）</text>
+
+  <rect x="330" y="156" width="300" height="46" rx="8" fill="#ffffff" stroke="#2563eb"/>
+  <text x="480" y="183" font-size="11.5" font-weight="700" fill="#1e40af" text-anchor="middle">② 读血缘（算子-04）判重</text>
+  <text x="480" y="199" font-size="9.5" fill="#64748b" text-anchor="middle">目标产物存在 且 output_hash 一致？</text>
+
+  <rect x="330" y="228" width="300" height="46" rx="8" fill="#ffffff" stroke="#2563eb"/>
+  <text x="480" y="255" font-size="11.5" font-weight="700" fill="#1e40af" text-anchor="middle">③ diff 拓扑序扫描</text>
+  <text x="480" y="271" font-size="9.5" fill="#64748b" text-anchor="middle">上游产物有效跳过 · 失效节点及下游级联标记</text>
+
+  <rect x="330" y="300" width="300" height="46" rx="8" fill="#ffffff" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="480" y="327" font-size="11.5" font-weight="700" fill="#92400e" text-anchor="middle">④ 只调度缺失/失效节点</text>
+  <text x="480" y="343" font-size="9.5" fill="#92400e" text-anchor="middle">经 02 准入 → 01 起资源（不整链重跑）</text>
+
+  <rect x="330" y="372" width="300" height="46" rx="8" fill="#ffffff" stroke="#16a34a"/>
+  <text x="480" y="399" font-size="11.5" font-weight="700" fill="#166534" text-anchor="middle">⑤ 过 Gate（G2–G4，条件分支）</text>
+  <text x="480" y="415" font-size="9.5" fill="#166534" text-anchor="middle">产物落库 + 血缘登记（算子-04）</text>
+
+  <rect x="330" y="444" width="300" height="46" rx="8" fill="#f0fdf4" stroke="#16a34a"/>
+  <text x="480" y="471" font-size="11.5" font-weight="700" fill="#166534" text-anchor="middle">⑥ 收敛到期望态</text>
+  <text x="480" y="487" font-size="9.5" fill="#166534" text-anchor="middle">同 spec 重跑=同结果 · 中断再提交=续跑</text>
+
+  <!-- 跳过分支 -->
+  <rect x="700" y="156" width="220" height="66" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-dasharray="5,4"/>
+  <text x="810" y="183" font-size="11" font-weight="700" fill="#166534" text-anchor="middle">已存在且一致</text>
+  <text x="810" y="203" font-size="9.5" fill="#166534" text-anchor="middle">全部跳过（NoOp）</text>
+  <text x="810" y="219" font-size="9" fill="#64748b" text-anchor="middle">收敛完成</text>
+
+  <!-- 箭头 -->
+  <line x1="480" y1="130" x2="480" y2="154" stroke="#2563eb" stroke-width="2" marker-end="url(#rG)"/>
+  <line x1="480" y1="202" x2="480" y2="226" stroke="#2563eb" stroke-width="2" marker-end="url(#rG)"/>
+  <line x1="480" y1="274" x2="480" y2="298" stroke="#2563eb" stroke-width="2" marker-end="url(#rG)"/>
+  <line x1="480" y1="346" x2="480" y2="370" stroke="#16a34a" stroke-width="2" marker-end="url(#rB)"/>
+  <line x1="480" y1="418" x2="480" y2="442" stroke="#16a34a" stroke-width="2" marker-end="url(#rB)"/>
+
+  <!-- 分支 -->
+  <path d="M 630 179 L 698 179" fill="none" stroke="#16a34a" stroke-width="2" marker-end="url(#rB)"/>
+  <text x="668" y="170" font-size="9" fill="#166534">是</text>
+  <text x="648" y="196" font-size="9" fill="#166534">（hash 一致）</text>
+  <path d="M 560 179 L 330 179 L 330 274 L 328 298" fill="none" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#rO)"/>
+  <text x="336" y="196" font-size="9" fill="#92400e">否（缺失/失效 → ③）</text>
+
+  <!-- 注释 -->
+  <text x="28" y="120" font-size="9.5" fill="#64748b">level-triggered：不依赖「上次跑到哪」，每轮重看期望 vs 实际——控制面重启/漏事件后下一轮照样收敛</text>
+  <text x="28" y="138" font-size="9.5" fill="#64748b">幂等：同 spec + 同输入版本重跑结果一致（三锁 + 固定 seed 兜底）</text>
+  <text x="28" y="156" font-size="9.5" fill="#64748b">可重放：spec 是唯一输入，历史 spec 重放 = 历史结果复现（审计与回归根基）</text>
+</svg>

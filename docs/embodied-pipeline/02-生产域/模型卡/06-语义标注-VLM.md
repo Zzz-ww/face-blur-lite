@@ -79,6 +79,6 @@
 - LeRobot（`language_instruction` 消费端格式）：https://github.com/huggingface/lerobot
 - Data-Juicer：https://github.com/modelscope/data-juicer
 
-## 面试话术（30 秒）
+## 速讲话术（30 秒）
 
 > "语义标注层的核心是规则和生成分治：动作边界用腕速曲线平滑后取局部极小值切分，这是 CPU 规则算子，确定性可复现；边界定了之后 VLM 逐片段生成结构化指令 JSON，再做跨源的语言标准化——GigaBrain 的管线就是这个套路，LLM 辅助指令重写加子任务标注。选型上数据合规优先开源 VLM 本地推理，API 模型只做小规模试点或互检。三个红线：VLM 产出必须标 label_source 等于 model，不能和人工标注混标；隐私数据进 API 前必须脱敏前置；标准化只换表达不换语义，要做等价抽检。这块的成本随片段数线性涨，切分粒度就是成本旋钮。"

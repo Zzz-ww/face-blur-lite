@@ -5,7 +5,7 @@
 ## 核实状态（2026-10-17）
 
 - ✅ 已核实：节点级字段语义（`id=operator@version`/`exec`/`resources`/`upstream`/`inject`/`gates`/`checkpoint`）与算子设计-03 §4 示例一致；「环检测拒绝提交」口径沿用算子-03 §3；三锁绑定沿用 [算子设计-04 §1](../02-生产域/算子设计/算子设计-04-算子血缘与版本三锁.md)
-- ⚠️ 设计通识：管线级 Schema 顶层字段（`params`/`trigger`/`inputs`/`outputs`/`failure_policy`）、DSL 引用语法（`${params.x}`/`${nodes.y.outputs.z}`）、条件分支与循环为**本平台设计**（字段名以部署版本为准）；Argo Workflows/Dagster 对照为业内通识
+- ⚠️ 设计通识：管线级 Schema 顶层字段（`params`/`trigger`/`inputs`/`outputs`/`failure_policy`）、DSL 引用语法（`${params.x}`/`${nodes.y.outputs.z}`）、条件分支与循环为**本平台设计**（字段名以部署版本为准）；Argo Workflows/Dagster 对照为业内通识（K8s 原生 CRD 编排为 ML 团队主流路线，见 §7 业内对照）
 - ❓ 待补：循环/子管线复用的表达力边界（是否引入 foreach）——待产品决策；静态校验的实测拦截率、reconcile 跳过率收益——待团队标定
 
 ## 1. 定位与边界
@@ -90,6 +90,8 @@
                 ⑤ 收敛到期望态（同 spec 重跑 = 同结果；中断后再次提交即续跑）
 ```
 
+![声明式 reconcile · 期望态收敛：读血缘判重 → diff 拓扑序扫描 → 只调度缺失/失效节点 → 过 Gate → 落库登记；level-triggered / 幂等 / 可重放，断点续跑是推论](../../assets/embodied-controlplane-reconcile.svg)
+
 - **level-triggered**：reconcile 不依赖「上次跑到哪」的记忆，每轮重看期望 vs 实际——控制面重启/漏事件后下一轮照样收敛（与 [01 篇 §3](01-KubeRay控制面.md) 同范式）
 - **幂等**：同 spec + 同输入版本重跑结果一致（三锁 + 固定 seed 兜底，算子-03 §8）
 - **可重放**：spec 是唯一输入，历史 spec 重放 = 历史结果复现（审计与回归的根基）
@@ -107,6 +109,8 @@
 | 断点续跑 | reconcile 自动跳过已完成 | 要自己记进度 |
 | 可审计 | spec 即意图，版本化留痕 | 意图埋在脚本逻辑里 |
 | 控制面收敛 | 期望态对齐，自愈 | 每步命令都要人盯 |
+
+**业内对照（声明式 K8s 编排是 ML 团队主流路线）**：本平台「自研 PipelineSpec CRD + reconciler」不是孤例——**Argo Workflows**（CNCF，K8s 上最流行的工作流引擎）就是同款模式：CRD + controller、每步一个 Pod、声明式收敛、GitOps 交付；K8s 系 ML 团队在数百作业规模后普遍从 Airflow 迁向这类 K8s 原生编排（Airflow 长驻控制面 + 命令式 Python DAG 的伸缩性与 GitOps 短板是迁移主因，对照上表逐项成立）。**Dagster** 则走「软件定义资产」路线，以资产/血缘/分区为编排对象，与资产域血缘叙事同构——三类路线（K8s 原生 CRD / 命令式 DAG / 资产导向）业内并存，本平台取声明式 CRD 路线，与 XLB 控制面叙事一致。
 
 ## 8. 精简示例（管线级骨架）
 
@@ -162,7 +166,7 @@ failure_policy: {transient: retry_backoff, structural: abort, data: dlq_skip}
 - **下游（域外）**：执行落生产域（算子-03 §1 执行框架映射）；Succeeded 产物 + 血缘进治理域（版本晋升、G5/G6）；outputs 即「数据集为中心」的资产域登记目标
 - **SSOT 引用**：算子-03 §2–§4（依赖语义/引擎选型/节点级 YAML）、§7–§8（failure_policy/checkpoint）；算子-04 §1–§2（三锁与 output_hash——reconcile 的判重依据）
 
-## 11. 红线与面试话术
+## 11. 红线与速讲话术
 
 **红线**：
 
@@ -173,6 +177,6 @@ failure_policy: {transient: retry_backoff, structural: abort, data: dlq_skip}
 5. **Gate 是节点不是算子**：质检逻辑不许藏进算子内部（对齐算子-03 §4 读法③）——藏在里面 = 不可见、不可审计、不可分支
 6. **spec 只声明「要什么」**：`exec`/`resources` 等执行细节是编译期决定，spec 层面保持稳定——把「怎么跑」写进 spec 的，换个执行引擎就要改用户契约
 
-**面试话术（30 秒）**：
+**速讲话术（30 秒）**：
 
 > "用户入口是一份声明式 PipelineSpec，声明期望数据集和输入输出版本，节点是 operator@version 加显式 upstream，Gate 是图上的条件分支节点。提交期做六项静态校验——拓扑排序查环、上游引用、schema 类型匹配、算子模型版本在注册表里存在、资源申请对配额可行、Gate 引用合法——结构性失败全部前移到提交期拦住，不留到运行期烧 GPU。运行时是声明式 reconcile：读血缘看目标产物存不存在、hash 一不一致，存在的整段跳过，失效的级联重跑，只调度缺失节点——断点续跑不是专门模式，是 reconcile 的自然推论：中断后再次提交同一份 spec，自动跳过已完成的部分。版本上 spec 自身版本加算子、数据、模型三锁，任何时刻可复现可审计。这套和我在 XLB 的控制面完全同构：spec 就是转发表的期望态声明，校验器是配置下发前的合法性检查，reconciler 是控制循环 diff 期望与实际只下发变更——配置即期望态，控制面负责收敛。"

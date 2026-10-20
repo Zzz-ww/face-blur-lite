@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" font-family="-apple-system,'PingFang SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="cG" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#2563eb"/></marker>
+    <marker id="cO" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#f59e0b"/></marker>
+  </defs>
+  <rect x="0" y="0" width="960" height="560" rx="14" fill="#f8fafc"/>
+  <text x="28" y="38" font-size="18" font-weight="700" fill="#0f172a">03-管控域 · 控制面四层体系（示意）</text>
+  <text x="28" y="60" font-size="12.5" fill="#64748b">声明层 → 决策层 → 执行层 → 保障层；横切注入、产能侧边界；每层对应篇目编号</text>
+
+  <!-- 顶部入口 -->
+  <rect x="360" y="80" width="240" height="40" rx="8" fill="#eff6ff" stroke="#2563eb"/>
+  <text x="480" y="105" font-size="12" font-weight="700" fill="#1e40af" text-anchor="middle">用户入口（Web / CLI / SDK）</text>
+
+  <!-- 声明层 -->
+  <rect x="80" y="150" width="800" height="78" rx="10" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="480" y="174" font-size="12.5" font-weight="700" fill="#1e40af" text-anchor="middle">声明层 · 契约（要什么数据集，不写怎么跑）</text>
+  <rect x="110" y="188" width="250" height="28" rx="6" fill="#eff6ff"/><text x="235" y="207" font-size="10.5" fill="#1e3a8a" text-anchor="middle">04 · PipelineSpec（作业内 DAG 声明）</text>
+  <rect x="390" y="188" width="250" height="28" rx="6" fill="#eff6ff"/><text x="515" y="207" font-size="10.5" fill="#1e3a8a" text-anchor="middle">05 · PipelineRun（跨作业编排 · 触发链）</text>
+  <rect x="660" y="188" width="200" height="28" rx="6" fill="#f1f5f9"/><text x="760" y="207" font-size="10" fill="#64748b" text-anchor="middle">提交期六项静态校验（04 §5）</text>
+
+  <!-- 决策层 -->
+  <rect x="80" y="258" width="800" height="96" rx="10" fill="#ffffff" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="480" y="282" font-size="12.5" font-weight="700" fill="#92400e" text-anchor="middle">决策层 · 资源闸门（谁进、何时进、用谁的资源）</text>
+  <g font-size="10.5">
+    <rect x="110" y="296" width="180" height="44" rx="6" fill="#fef3c7"/><text x="200" y="314" font-weight="700" fill="#92400e" text-anchor="middle">02 · 四级调度链</text><text x="200" y="332" fill="#92400e" text-anchor="middle">Kueue 配额 + Volcano gang</text>
+    <rect x="310" y="296" width="170" height="44" rx="6" fill="#fef3c7"/><text x="395" y="314" font-weight="700" fill="#92400e" text-anchor="middle">06 · 优先级公平</text><text x="395" y="332" fill="#92400e" text-anchor="middle">抢占护栏 / DRF / 防饥饿</text>
+    <rect x="500" y="296" width="180" height="44" rx="6" fill="#fef3c7"/><text x="590" y="314" font-weight="700" fill="#92400e" text-anchor="middle">07 · 多租户分池</text><text x="590" y="332" fill="#92400e" text-anchor="middle">三池互不挤兑 / 配额树</text>
+    <rect x="700" y="296" width="160" height="44" rx="6" fill="#fef3c7"/><text x="780" y="314" font-weight="700" fill="#92400e" text-anchor="middle">08 · GPU 资源池</text><text x="780" y="332" fill="#92400e" text-anchor="middle">型号分池 / 弹性</text>
+  </g>
+
+  <!-- 执行层 -->
+  <rect x="80" y="384" width="800" height="66" rx="10" fill="#ffffff" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="480" y="406" font-size="12.5" font-weight="700" fill="#166534" text-anchor="middle">执行层 · 集群与任务（放行后真正跑起来）</text>
+  <rect x="110" y="418" width="290" height="24" rx="6" fill="#f0fdf4"/><text x="255" y="435" font-size="10.5" fill="#166534" text-anchor="middle">01 · KubeRay 控制面（reconcile / 三层伸缩 / 规模性能）</text>
+  <rect x="440" y="418" width="230" height="24" rx="6" fill="#f0fdf4"/><text x="555" y="435" font-size="10.5" fill="#166534" text-anchor="middle">08 · Ray autoscaler 弹性</text>
+  <rect x="690" y="418" width="170" height="24" rx="6" fill="#f0fdf4"/><text x="775" y="435" font-size="10.5" fill="#166534" text-anchor="middle">L4 Ray 两级调度</text>
+
+  <!-- 保障层 -->
+  <rect x="80" y="480" width="800" height="66" rx="10" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="480" y="502" font-size="12.5" font-weight="700" fill="#334155" text-anchor="middle">保障层 · 生命周期（跑了之后怎么收场）</text>
+  <rect x="110" y="514" width="330" height="24" rx="6" fill="#f1f5f9"/><text x="275" y="531" font-size="10.5" fill="#475569" text-anchor="middle">03 · 任务状态机与容错（Queued→…→Evicted）</text>
+  <rect x="470" y="514" width="240" height="24" rx="6" fill="#f1f5f9"/><text x="590" y="531" font-size="10.5" fill="#475569" text-anchor="middle">09 · 检查点与断点续跑</text>
+  <text x="830" y="531" font-size="10" fill="#64748b" text-anchor="middle">DLQ / 超时清理</text>
+
+  <!-- 横切与边界 -->
+  <text x="480" y="560" font-size="9.5" fill="#166534" text-anchor="middle">横切注入（90）：可观测 · 安全合规（准入审计/脱敏强制）· 多租户计量　|　产能侧（设备/批次/排产）归接入域，两套调度经 RawDataPackage 衔接互不接管</text>
+
+  <!-- 箭头 -->
+  <line x1="480" y1="120" x2="480" y2="148" stroke="#2563eb" stroke-width="2" marker-end="url(#cG)"/>
+  <line x1="480" y1="228" x2="480" y2="256" stroke="#f59e0b" stroke-width="2" marker-end="url(#cO)"/>
+  <line x1="480" y1="354" x2="480" y2="382" stroke="#16a34a" stroke-width="2" marker-end="url(#cG)"/>
+  <line x1="480" y1="450" x2="480" y2="478" stroke="#94a3b8" stroke-width="2" marker-end="url(#cG)"/>
+</svg>

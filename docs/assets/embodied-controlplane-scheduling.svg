@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" font-family="-apple-system,'PingFang SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="sG" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#2563eb"/></marker>
+    <marker id="sO" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#f59e0b"/></marker>
+    <marker id="sR" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#a14e50"/></marker>
+    <marker id="sB" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#16a34a"/></marker>
+  </defs>
+  <rect x="0" y="0" width="960" height="560" rx="14" fill="#f8fafc"/>
+  <text x="28" y="38" font-size="18" font-weight="700" fill="#0f172a">管控域 · 调度链全景（准入 → 编排 → 放置 → 任务，示意）</text>
+  <text x="28" y="60" font-size="12.5" fill="#64748b">PipelineSpec 声明 → 三合一准入（合规钩子 + Kueue 配额 + Volcano gang）→ KubeRay 起集群 → 节点绑定 → Ray 两级调度；状态机贯穿、三池分租户、横切服务注入</text>
+
+  <!-- 顶：PipelineSpec -->
+  <rect x="360" y="80" width="240" height="44" rx="8" fill="#eff6ff" stroke="#2563eb"/>
+  <text x="480" y="107" font-size="12" font-weight="700" fill="#1e40af" text-anchor="middle">PipelineSpec（04 DSL）</text>
+
+  <!-- 主链 -->
+  <rect x="80" y="160" width="170" height="86" rx="8" fill="#ffffff" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="165" y="182" font-size="11.5" font-weight="700" fill="#92400e" text-anchor="middle">L1 准入闸门（02）</text>
+  <text x="165" y="202" font-size="9.5" fill="#92400e" text-anchor="middle">合规钩子（横切02）</text>
+  <text x="165" y="218" font-size="9.5" fill="#92400e" text-anchor="middle">Kueue 配额（nominal/borrow）</text>
+  <text x="165" y="234" font-size="9.5" fill="#92400e" text-anchor="middle">Volcano gang（PodGroup）</text>
+
+  <rect x="286" y="160" width="170" height="86" rx="8" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="371" y="182" font-size="11.5" font-weight="700" fill="#1e40af" text-anchor="middle">L2 编排层（01）</text>
+  <text x="371" y="204" font-size="9.5" fill="#475569" text-anchor="middle">KubeRay operator</text>
+  <text x="371" y="220" font-size="9.5" fill="#475569" text-anchor="middle">RayCluster / RayJob CR</text>
+  <text x="371" y="236" font-size="9.5" fill="#475569" text-anchor="middle">reconcile 起 head/worker</text>
+
+  <rect x="492" y="160" width="170" height="86" rx="8" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="577" y="182" font-size="11.5" font-weight="700" fill="#1e40af" text-anchor="middle">L3 节点层</text>
+  <text x="577" y="204" font-size="9.5" fill="#475569" text-anchor="middle">kube-scheduler 绑定</text>
+  <text x="577" y="220" font-size="9.5" fill="#475569" text-anchor="middle">（Volcano 接管批放置）</text>
+  <text x="577" y="236" font-size="9.5" fill="#475569" text-anchor="middle">GPU 型号池匹配</text>
+
+  <rect x="698" y="160" width="220" height="86" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="808" y="182" font-size="11.5" font-weight="700" fill="#166534" text-anchor="middle">L4 任务层（Ray）</text>
+  <text x="808" y="204" font-size="9.5" fill="#166534" text-anchor="middle">两级调度 Local→Global</text>
+  <text x="808" y="220" font-size="9.5" fill="#166534" text-anchor="middle">GPU Actor 跑模型算子</text>
+  <text x="808" y="236" font-size="9.5" fill="#166534" text-anchor="middle">CPU Ray Data 跑规则算子</text>
+
+  <!-- 状态机竖带 -->
+  <rect x="24" y="160" width="40" height="258" rx="8" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="44" y="150" font-size="9.5" font-weight="700" fill="#92400e" text-anchor="middle">状态机（03）</text>
+  <g font-size="9">
+    <text x="44" y="196" fill="#92400e" text-anchor="middle">Queued</text>
+    <text x="44" y="242" fill="#92400e" text-anchor="middle">Admitted</text>
+    <text x="44" y="288" fill="#92400e" text-anchor="middle">Running</text>
+    <text x="44" y="334" fill="#166534" text-anchor="middle">Succeeded</text>
+    <text x="44" y="380" fill="#a14e50" text-anchor="middle">Evicted</text>
+  </g>
+  <line x1="64" y1="186" x2="78" y2="198" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#sO)"/>
+  <line x1="64" y1="232" x2="78" y2="198" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#sO)"/>
+  <line x1="64" y1="278" x2="78" y2="198" stroke="#16a34a" stroke-width="1.5" marker-end="url(#sB)"/>
+  <line x1="64" y1="324" x2="78" y2="232" stroke="#a14e50" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#sR)"/>
+
+  <!-- 三池 -->
+  <rect x="760" y="280" width="158" height="138" rx="8" fill="#ffffff" stroke="#94a3b8"/>
+  <text x="839" y="302" font-size="10.5" font-weight="700" fill="#334155" text-anchor="middle">多租户三池（02 §4.3）</text>
+  <rect x="772" y="312" width="134" height="28" rx="5" fill="#f1f5f9"/><text x="839" y="330" font-size="9.5" fill="#475569" text-anchor="middle">数据平台池（L2/L3 感知语义）</text>
+  <rect x="772" y="346" width="134" height="28" rx="5" fill="#f1f5f9"/><text x="839" y="364" font-size="9.5" fill="#475569" text-anchor="middle">训练池（Ray Train）</text>
+  <rect x="772" y="380" width="134" height="28" rx="5" fill="#f1f5f9"/><text x="839" y="398" font-size="9.5" fill="#475569" text-anchor="middle">评测池（Golden 优先）</text>
+  <text x="839" y="412" font-size="8.5" fill="#64748b" text-anchor="middle">ResourceQuota 硬顶 + ClusterQueue 弹性</text>
+
+  <!-- 横切 -->
+  <rect x="80" y="288" width="640" height="58" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-dasharray="5,4"/>
+  <text x="400" y="310" font-size="11" font-weight="700" fill="#166534" text-anchor="middle">横切注入（90）</text>
+  <text x="400" y="330" font-size="9.5" fill="#166534" text-anchor="middle">可观测（指标/追踪/告警）· 安全合规（准入审计/脱敏强制）· 多租户计量（配额→用量→账单）</text>
+
+  <!-- 边界 -->
+  <text x="400" y="376" font-size="9.5" fill="#64748b" text-anchor="middle">产能侧（设备/批次/排产）归接入域，经 RawDataPackage 落湖衔接——两套调度互不接管</text>
+
+  <!-- 反馈 -->
+  <path d="M 808 246 L 808 276 L 400 276 L 400 262" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#sO)"/>
+  <text x="480" y="272" font-size="9" fill="#64748b">作业状态回写 → 准入/配额决策反哺</text>
+
+  <!-- 箭头 -->
+  <line x1="480" y1="124" x2="480" y2="152" stroke="#2563eb" stroke-width="2" marker-end="url(#sG)"/>
+  <line x1="250" y1="203" x2="284" y2="203" stroke="#2563eb" stroke-width="2" marker-end="url(#sG)"/>
+  <line x1="456" y1="203" x2="490" y2="203" stroke="#2563eb" stroke-width="2" marker-end="url(#sG)"/>
+  <line x1="662" y1="203" x2="696" y2="203" stroke="#16a34a" stroke-width="2" marker-end="url(#sB)"/>
+
+  <!-- 拒绝分支 -->
+  <path d="M 165 246 L 165 270 L 700 270 L 700 158" fill="none" stroke="#a14e50" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#sR)"/>
+  <text x="430" y="286" font-size="9" fill="#a14e50" text-anchor="middle">任一不过 → 拒绝下发 + 原因入审计（结构性失败不重试）</text>
+</svg>

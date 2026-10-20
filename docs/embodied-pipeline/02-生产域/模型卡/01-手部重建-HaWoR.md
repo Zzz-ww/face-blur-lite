@@ -88,6 +88,6 @@
 - CVPR 2025 论文：https://openaccess.thecvf.com/content/CVPR2025/html/Zhang_HaWoR_World-Space_Hand_Motion_Reconstruction_from_Egocentric_Videos_CVPR_2025_paper.html
 - 相关：WiLoR https://rolpotamias.github.io/WiLoR/
 
-## 面试话术（30 秒）
+## 速讲话术（30 秒）
 
 > "HaWoR 解决第一视角手部在世界坐标系的重建。第一视角下相机和手同时运动，直接回归世界坐标是病态的，所以它先在相机空间做 MANO 重建，再用一个适配第一视角的 SLAM 估计世界系相机轨迹，两者组合抬升到世界系，手出视野用运动补全兜底；论文报告全局轨迹 ATE 3.36mm。工程上它 GPU 推理为主、可切段流式，我会和 Hamer 做双模型互检。它和 MegaSaM 的协同点在于：相机轨迹是公共坐标系，场景重建给出手部重建的坐标系基准。"

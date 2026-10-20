@@ -78,6 +78,6 @@
 - Grounded-SAM：https://github.com/IDEA-Research/Grounded-Segment-Anything
 - TAPIR：https://github.com/google-deepmind/tapnet
 
-## 面试话术（30 秒）
+## 速讲话术（30 秒）
 
 > "分割跟踪链解决手物 mask 时序轨和接触边界。链路三段：首帧冷启动二选一——ego 视角用 EgoHOS，开域未知物体用 Grounded-SAM 文本提示；然后 SAM2 做时序传播，Meta 的分割跟踪事实标准；最后 TAPIR 补稠密点轨迹，标出接触边界。它扇出最广：手部 mask 给手部重建做遮挡屏蔽、给 SLAM 做动态屏蔽、给 FoundationPose 做 ROI、给 L3 当动作分割和 VLM 指令的物理依据。两个关键工程点：一是首帧 mask 失败会让 SAM2 一错到底，所以必须设首帧质检门；二是 TAPIR 出的是 2D 点，要结合深度和外参才能得到 3D 接触点，直接说 3D 就是坐标系错误。"

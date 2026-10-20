@@ -78,6 +78,6 @@
 - GeoCalib：https://github.com/cvg/GeoCalib
 - 第三方对比（耗时/内存）：https://openreview.net/forum?id=oBOVYRRSy2
 
-## 面试话术（30 秒）
+## 速讲话术（30 秒）
 
 > "相机位姿模块是整条感知管线的坐标系枢纽，MegaSaM 是这个槽位的标杆——CVPR 2025 Best Paper Honorable Mention，核心是把相机轨迹和稠密深度做可微联合优化，外部深度先验只做初始化和约束，动态物体用运动分割降权。它输出 camera_to_world，手部和物体的相机系结果全靠这个矩阵抬到世界系。工程上它是成本大头，第三方对比约 13 秒每样本，所以长视频必须切段加段间拼接。选型上：动态场景用它，遮挡密集 DROID-SLAM 兜底，无内参的互联网视频先过 GeoCalib 恢复虚拟内参，纯静态场景直接 COLMAP 更省。红线是相机矩阵只能做后处理，绝不能回灌进任何优化回路。"

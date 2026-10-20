@@ -280,6 +280,6 @@ def process_one_l1_segment(rgb_frames, ts, intrinsics_meta):
 - 阿里云开发者社区《机器学习分布式框架 Ray》（论文架构图示 / API / 集群命令 / 示例，2024-05-18，Ray v1.6.0 时代入门文）：https://developer.aliyun.com/article/1512422
 - 调研记录日期：2026-10-01；版本兼容矩阵见第 8 节待确认项。
 
-## 10. 面试话术
+## 10. 速讲话术
 
 > "Ray 是 Berkeley RISELab 的通用分布式执行框架。架构上两级调度：Local Scheduler 就近执行，必要时交给 Global Scheduler 分发；GCS 维护对象/任务/事件/函数四类全局状态，是容错保证；节点内 Object Store 内存共享、节点间互联做通信。编程模型上 Task 无状态、Actor 有状态常驻；ray.get 是全量阻塞等待、ray.wait 支持增量处理，对应我管线里增量 SLAM 的流式思路；调度有固定开销，所以任务粒度不能过小，这也是我 L1 分片定 3~10s 的原因之一。"
