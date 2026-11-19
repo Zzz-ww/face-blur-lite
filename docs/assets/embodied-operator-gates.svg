@@ -85,9 +85,9 @@
   <text x="222" y="614" font-size="12" fill="#6b7280">Golden Set 回归 · 泄漏复查</text>
   <text x="222" y="631" font-size="12.5" fill="#1f2937">指标不劣于基线 · 泄漏=0</text>
   <rect x="644" y="574" width="284" height="27" rx="5" fill="#e8f1ec" stroke="#35705A"/>
-  <text x="654" y="592.5" font-size="12.5" fill="#35705A">通过 → 发布（Badcase 回流闭环）</text>
+  <text x="654" y="592.5" font-size="12.5" fill="#35705A">通过 → 发布审批</text>
   <rect x="644" y="611" width="284" height="27" rx="5" fill="#f6e8e8" stroke="#A14E50"/>
-  <text x="654" y="629.5" font-size="12.5" fill="#A14E50">失败 → 版本回滚</text>
+  <text x="654" y="629.5" font-size="12.5" fill="#A14E50">失败 → 阻断候选发布</text>
   <rect x="24" y="654" width="912" height="34" rx="6" fill="#ffffff" stroke="#A14E50" stroke-width="2"/>
   <text x="480" y="676" text-anchor="middle" font-size="13.5" font-weight="700" fill="#A14E50">硬红线：G4 违规率必须 = 0（合规门禁，全批拦截，不进入下游）</text>
 </svg>
