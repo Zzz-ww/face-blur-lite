@@ -1,0 +1,92 @@
+{
+  "fixture_version": 1,
+  "source_kind": "synthetic_contract_fixture",
+  "media_binding": null,
+  "source": {
+    "sample_id": "s-ego-001",
+    "media_ref": "raw-017/left@1",
+    "calibration_ref": "rig-017@1",
+    "reference_view": "left",
+    "time_range": {"start_tick": 0, "end_tick": 600, "timebase_ref": "tb-30fps-v1"}
+  },
+  "camera_pose": {
+    "result_ref": "camera-002",
+    "reference_view": "left",
+    "timebase_ref": "tb-30fps-v1",
+    "world_id": "world-cam-002",
+    "transform": "camera_to_world",
+    "translation_unit": "m",
+    "valid_ranges": [[0, 180], [185, 600]],
+    "invalid_ranges": [{"range": [180, 185], "reason": "tracking_lost"}]
+  },
+  "hand_request": {
+    "pose_source": "external",
+    "camera_pose_ref": "camera-002",
+    "required": ["hand_2d", "hand_cam"],
+    "optional": ["hand_world"]
+  },
+  "hand_result": {
+    "result_ref": "hand-004", "reference_view": "left", "timebase_ref": "tb-30fps-v1",
+    "camera_pose_ref": "camera-002", "world_id": "world-cam-002"
+  },
+  "consumer": {"owner": "wearer", "handedness": "right", "observation": "observed"},
+  "expected_target_track_id": "h1",
+  "cases": [
+    {
+      "id": "normal",
+      "range": [168, 173],
+      "records": [
+        {"range": [168, 173], "track_id": "h1", "handedness": "right", "owner": "wearer", "observation": "observed",
+         "valid": {"hand_2d": true, "hand_cam": true, "hand_world": true}},
+        {"range": [169, 171], "track_id": "h3", "handedness": "left", "owner": "wearer", "observation": "observed",
+         "valid": {"hand_2d": true, "hand_cam": true, "hand_world": true}}
+      ],
+      "expected_ranges": {"hand_2d": [[168, 173]], "hand_cam": [[168, 173]], "hand_world": [[168, 173]]}
+    },
+    {
+      "id": "crossing",
+      "range": [196, 201],
+      "records": [
+        {"range": [196, 201], "track_id": "h1", "handedness": "right", "owner": "wearer", "observation": "observed",
+         "valid": {"hand_2d": true, "hand_cam": true, "hand_world": true}},
+        {"range": [196, 201], "track_id": "h2", "handedness": "right", "owner": "other", "observation": "observed",
+         "valid": {"hand_2d": true, "hand_cam": true, "hand_world": true}}
+      ],
+      "expected_ranges": {"hand_2d": [[196, 201]], "hand_cam": [[196, 201]], "hand_world": [[196, 201]]}
+    },
+    {
+      "id": "out_of_view",
+      "range": [208, 214],
+      "records": [
+        {"range": [208, 210], "track_id": "h1", "handedness": "right", "owner": "wearer", "observation": "observed",
+         "valid": {"hand_2d": true, "hand_cam": true, "hand_world": true}},
+        {"range": [210, 212], "track_id": "h1", "handedness": "right", "owner": "wearer", "observation": "missing",
+         "valid": {"hand_2d": false, "hand_cam": false, "hand_world": false}, "reason": "out_of_view"},
+        {"range": [210, 212], "track_id": "h2", "handedness": "right", "owner": "unknown", "observation": "observed",
+         "valid": {"hand_2d": true, "hand_cam": true, "hand_world": true}},
+        {"range": [212, 214], "track_id": "h1", "handedness": "right", "owner": "wearer", "observation": "observed",
+         "valid": {"hand_2d": true, "hand_cam": true, "hand_world": true}}
+      ],
+      "expected_ranges": {"hand_2d": [[208, 210], [212, 214]], "hand_cam": [[208, 210], [212, 214]], "hand_world": [[208, 210], [212, 214]]}
+    },
+    {
+      "id": "camera_lost",
+      "range": [178, 187],
+      "records": [
+        {"range": [178, 180], "track_id": "h1", "handedness": "right", "owner": "wearer", "observation": "observed",
+         "valid": {"hand_2d": true, "hand_cam": true, "hand_world": true}},
+        {"range": [180, 185], "track_id": "h1", "handedness": "right", "owner": "wearer", "observation": "observed",
+         "valid": {"hand_2d": true, "hand_cam": true, "hand_world": false}, "reason": "camera_tracking_lost"},
+        {"range": [185, 187], "track_id": "h1", "handedness": "right", "owner": "wearer", "observation": "observed",
+         "valid": {"hand_2d": true, "hand_cam": true, "hand_world": true}}
+      ],
+      "expected_ranges": {"hand_2d": [[178, 187]], "hand_cam": [[178, 187]], "hand_world": [[178, 180], [185, 187]]}
+    }
+  ],
+  "geometry_probe": {
+    "tick": 170, "track_id": "h1", "joint": "wrist", "world_id": "world-cam-002",
+    "camera_to_world": [[0, -1, 0, 0.3], [1, 0, 0, -0.1], [0, 0, 1, 0.2], [0, 0, 0, 1]],
+    "point_camera_m": [0.1, 0.2, 0.5], "expected_point_world_m": [0.1, 0.0, 0.7],
+    "numeric_tolerance_m": 0.000000001
+  }
+}
